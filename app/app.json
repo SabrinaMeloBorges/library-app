@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Library",
+    "slug": "library",
+    "scheme": "library",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F7F2E8",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.library.reading"
+    },
+    "android": {
+      "package": "com.library.reading",
+      "adaptiveIcon": {
+        "backgroundColor": "#263C32",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#263C32"
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}
