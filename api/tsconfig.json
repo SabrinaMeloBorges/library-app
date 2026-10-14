@@ -17,5 +17,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "tests", "prisma", "vitest.config.ts"]
+  "include": ["src", "tests", "prisma", "vitest.config.mts", "vitest.mysql.config.mts"]
 }

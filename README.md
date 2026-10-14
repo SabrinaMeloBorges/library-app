@@ -138,6 +138,19 @@ npm run db:up                   # docker compose up -d (MySQL 8 na porta 3306)
 npx prisma migrate deploy       # aplica as migrations versionadas
 ```
 
+**Sem Docker (MySQL instalado localmente):** qualquer MySQL 8 serve. Crie o banco e um usuário, ajuste `DATABASE_URL` no `.env` e rode `npx prisma migrate deploy`:
+
+```sql
+CREATE DATABASE library CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE library_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'library'@'localhost' IDENTIFIED BY 'sua-senha';
+GRANT ALL PRIVILEGES ON *.* TO 'library'@'localhost';
+```
+
+O privilégio global só é necessário para o `prisma migrate dev`, que cria um banco temporário de comparação. Para apenas aplicar migrations, basta `GRANT ALL PRIVILEGES ON library.* ...`.
+
+O **MySQL Workbench** é apenas um cliente: conecte-o em `127.0.0.1:3306` com o usuário `library` para ver as tabelas e os dados.
+
 Dados de demonstração (opcional, apenas em desenvolvimento). A senha do usuário demo vem de variável de ambiente, nunca do código:
 
 ```bash
@@ -253,12 +266,13 @@ O catálogo bibliográfico (`books`) é separado da relação do usuário com o 
 
 ```bash
 cd api
-npm test            # Vitest: unitários (regras de domínio) + integração HTTP (Supertest)
+npm test            # Vitest: unitários (regras de domínio) + integração HTTP com repositórios em memória
+npm run test:mysql  # os mesmos testes de integração contra o MySQL (usa TEST_DATABASE_URL do .env)
 npm run typecheck
 npm run lint
 ```
 
-Os testes de integração sobem o Express completo com repositórios em memória e cobrem: cadastro, login, `/me`, logout com revogação do token, CRUD da biblioteca, validações do backend, busca/filtro/ordenação, livro compartilhado e cópia pessoal, sessões com recálculo de progresso, páginas sem duplicidade, metas, dashboard e **isolamento entre usuários** (acesso por ID de outro usuário retorna 404).
+Os testes de integração sobem o Express completo, com repositórios em memória (`npm test`) ou com Prisma + MySQL (`npm run test:mysql`, que exige o banco `library_test` com as migrations aplicadas), e cobrem: cadastro, login, `/me`, logout com revogação do token, CRUD da biblioteca, validações do backend, busca/filtro/ordenação, livro compartilhado e cópia pessoal, sessões com recálculo de progresso, páginas sem duplicidade, metas, dashboard e **isolamento entre usuários** (acesso por ID de outro usuário retorna 404).
 
 ### Aplicativo
 
@@ -276,14 +290,16 @@ Cobrem: validação dos formulários, parsing e erros do catálogo externo, `use
 
 | Verificação | Resultado |
 | --- | --- |
-| API — Vitest | 42 testes passando (7 arquivos) |
+| API — Vitest (memória) | 42 testes passando (7 arquivos) |
+| API — Vitest contra MySQL 8.4 (`npm run test:mysql`) | 27 testes de integração passando (4 arquivos) |
+| API — `prisma migrate deploy` + `prisma migrate diff` no MySQL 8.4 | migration aplicada, sem divergência entre banco e schema, 7 restrições `CHECK` ativas |
 | API — `tsc` e ESLint | sem erros |
 | App — Jest | 38 testes passando (7 suítes) |
 | App — `tsc`, ESLint e `expo-doctor` | sem erros (21/21 checks) |
 | App — `expo export --platform android` | bundle gerado |
 | Fluxo ponta a ponta na versão web (Edge headless) contra a API em modo memória | cadastro, busca no Open Library, cadastro de livro, sessão, metas, biblioteca, tema e estatísticas funcionando, sem erros de console |
 
-Não executados neste ambiente: a API contra um MySQL real (não havia MySQL/Docker disponível; a migration foi gerada pelo Prisma a partir do schema) e as notificações em aparelho físico. Veja [Limitações conhecidas](#limitações-conhecidas).
+Não executado neste ambiente: notificações em aparelho físico. Veja [Limitações conhecidas](#limitações-conhecidas).
 
 ### Roteiro de teste manual no dispositivo
 
@@ -469,7 +485,6 @@ Capturas da versão web (viewport 390×844), geradas durante o teste ponta a pon
 
 ## Limitações conhecidas
 
-- **MySQL não testado neste ambiente**: a máquina de desenvolvimento não tinha MySQL nem Docker. A migration foi gerada pelo Prisma a partir do schema e os testes rodam com repositórios em memória. Antes da apresentação, rode `npm run db:up`, `npx prisma migrate deploy`, o seed e o roteiro manual acima.
 - **Notificações não verificadas em aparelho**: agendamento, cancelamento e reconciliação foram testados com `expo-notifications` simulado. A entrega real precisa ser conferida em um dispositivo físico. No Expo Go as notificações **locais** funcionam; notificações push remotas (não usadas) exigiriam development build. A versão web não suporta notificações e mostra um aviso.
 - **Fuso dos lembretes**: os lembretes usam o fuso do aparelho; as estatísticas usam o `APP_TIMEZONE` da API.
 - **Sem modo offline**: biblioteca, sessões e metas ficam no backend. Sem conexão, as telas exibem erro com opção de tentar novamente; tema e lembretes continuam funcionando localmente.

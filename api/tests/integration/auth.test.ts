@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Express } from 'express';
@@ -11,13 +12,14 @@ describe('Autenticação', () => {
   });
 
   it('cadastra usuário e retorna token sem expor o hash da senha', async () => {
+    const suffix = randomUUID();
     const response = await request(app)
       .post('/api/v1/auth/register')
-      .send({ name: 'Ana', email: 'ANA@Example.com ', password: 'leitura2026' })
+      .send({ name: 'Ana', email: `ANA-${suffix}@Example.com `, password: 'leitura2026' })
       .expect(201);
 
     expect(response.body.token).toEqual(expect.any(String));
-    expect(response.body.user).toMatchObject({ name: 'Ana', email: 'ana@example.com' });
+    expect(response.body.user).toMatchObject({ name: 'Ana', email: `ana-${suffix}@example.com` });
     expect(response.body.user.passwordHash).toBeUndefined();
   });
 
