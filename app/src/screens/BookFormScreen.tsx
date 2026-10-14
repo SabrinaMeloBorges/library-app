@@ -9,10 +9,10 @@ import { ScreenContainer } from '../components/ScreenContainer';
 import { ErrorState, LoadingState } from '../components/StateViews';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useAsyncResource } from '../hooks/useAsyncResource';
-import { useSnackbar } from '../hooks/useSnackbar';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 import type { RootStackScreenProps } from '../navigation/types';
 import { toApiError } from '../services/apiError';
-import type { CatalogBook } from '../services/catalogService';
+import { catalogService, type CatalogBook } from '../services/catalogService';
 import { libraryService } from '../services/libraryService';
 import type { LibraryItem, LibraryItemInput } from '../types/api';
 import { STATUS_OPTIONS } from '../utils/labels';
@@ -116,7 +116,13 @@ interface BookFormProps {
 
 const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormProps) => {
   const theme = useAppTheme();
-  const { showMessage } = useSnackbar();
+  const { notifySuccess } = useActionFeedback();
+  const externalId = catalogBook?.externalId;
+  const loadDetails = useCallback(() => catalogService.workDetails(externalId ?? ''), [externalId]);
+  const workDetails = useAsyncResource(loadDetails, {
+    enabled: Boolean(externalId),
+    refetchOnFocus: false,
+  });
   const [values, setValues] = useState<BookFormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors<Field>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -139,7 +145,7 @@ const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormPr
       const payload = toPayload(values);
       if (bookId) {
         await libraryService.update(bookId, payload);
-        showMessage('Livro atualizado.');
+        notifySuccess('Livro atualizado.');
         navigation.goBack();
         return;
       }
@@ -147,10 +153,12 @@ const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormPr
         ...payload,
         coverUrl: catalogBook?.coverUrl ?? null,
         isbn: catalogBook?.isbn ?? null,
+        description: workDetails.data?.description ?? null,
+        subjects: workDetails.data?.subjects ?? null,
         externalSource: catalogBook ? catalogBook.externalSource : null,
         externalId: catalogBook ? catalogBook.externalId : null,
       });
-      showMessage('Livro adicionado à biblioteca.');
+      notifySuccess('Livro adicionado à biblioteca.');
       navigation.popTo('Main', { screen: 'Library' });
       navigation.navigate('BookDetails', { bookId: created.id });
     } catch (error) {
@@ -171,6 +179,7 @@ const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormPr
             style={[styles.catalogText, { color: theme.appColors.textMuted }]}
           >
             Dados preenchidos a partir do Open Library. Revise antes de salvar.
+            {workDetails.data?.subjects ? `\nAssuntos: ${workDetails.data.subjects}` : ''}
           </Text>
         </View>
       ) : null}

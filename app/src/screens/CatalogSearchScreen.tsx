@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Searchbar, Text } from 'react-native-paper';
@@ -14,9 +14,18 @@ const MAX_CONTENT_WIDTH = 640;
 
 const keyExtractor = (book: CatalogBook): string => book.externalId;
 
-export const CatalogSearchScreen = ({ navigation }: RootStackScreenProps<'CatalogSearch'>) => {
+export const CatalogSearchScreen = ({
+  navigation,
+  route,
+}: RootStackScreenProps<'CatalogSearch'>) => {
   const theme = useAppTheme();
-  const { query, setQuery, results, status, error, retry } = useBookSearch();
+  const subject = route.params?.subject;
+  const subjectLabel = route.params?.subjectLabel;
+  const { query, setQuery, results, status, error, retry } = useBookSearch(undefined, subject);
+
+  useLayoutEffect(() => {
+    if (subjectLabel) navigation.setOptions({ title: subjectLabel });
+  }, [navigation, subjectLabel]);
 
   const addManually = useCallback(() => navigation.navigate('BookForm'), [navigation]);
 
@@ -107,10 +116,10 @@ export const CatalogSearchScreen = ({ navigation }: RootStackScreenProps<'Catalo
     >
       <View style={styles.header}>
         <Searchbar
-          placeholder="Título ou autor"
+          placeholder={subjectLabel ? `Buscar em ${subjectLabel}` : 'Título ou autor'}
           value={query}
           onChangeText={setQuery}
-          autoFocus
+          autoFocus={!subject}
           loading={status === 'loading'}
           accessibilityLabel="Pesquisar no catálogo de livros"
           style={[

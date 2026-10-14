@@ -46,6 +46,8 @@ const item: LibraryItem = {
     publisher: 'Penguin',
     coverUrl: null,
     isbn: null,
+    description: null,
+    subjects: null,
     externalSource: null,
     externalId: null,
   },
@@ -71,7 +73,7 @@ describe('BookDetailsScreen', () => {
     getMock.mockResolvedValue(item);
     const navigation = await renderScreen(BOOK_ID);
 
-    expect(await screen.findByText('Machado de Assis')).toBeOnTheScreen();
+    expect(await screen.findByText('por Machado de Assis')).toBeOnTheScreen();
     expect(screen.getAllByText('Memórias Póstumas de Brás Cubas').length).toBeGreaterThan(0);
     expect(screen.getByText('Página 90 de 300')).toBeOnTheScreen();
     expect(screen.getByText('Narrador defunto e irônico.')).toBeOnTheScreen();
@@ -79,7 +81,7 @@ describe('BookDetailsScreen', () => {
     expect(listSessionsMock).toHaveBeenCalledWith({ userBookId: BOOK_ID });
     expect(screen.getByText('Nenhuma sessão registrada para este livro ainda.')).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByText('Registrar sessão de leitura'));
+    await fireEvent.press(screen.getByText('Registrar leitura'));
     expect(navigation.navigate).toHaveBeenCalledWith('SessionForm', { userBookId: BOOK_ID });
   });
 

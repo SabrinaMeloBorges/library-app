@@ -9,6 +9,7 @@ export interface LoginCredentials {
 
 export interface RegisterData extends LoginCredentials {
   name: string;
+  username?: string;
 }
 
 const isUser = (value: unknown): value is User => {

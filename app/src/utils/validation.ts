@@ -31,8 +31,19 @@ export const validateLoginForm = (values: LoginFormValues): FormErrors<keyof Log
 
 export interface RegisterFormValues extends LoginFormValues {
   name: string;
+  username: string;
   confirmPassword: string;
 }
+
+const USERNAME_PATTERN = /^[a-z0-9_.]{3,30}$/;
+
+export const validateUsername = (value: string, required: boolean): string | undefined => {
+  const username = value.trim().toLowerCase();
+  if (!username) return required ? 'Informe um nome de usuário' : undefined;
+  return USERNAME_PATTERN.test(username)
+    ? undefined
+    : 'Use de 3 a 30 caracteres: letras minúsculas, números, ponto ou sublinhado';
+};
 
 export const validateRegisterForm = (
   values: RegisterFormValues,
@@ -50,6 +61,7 @@ export const validateRegisterForm = (
       : values.name.trim().length > 80
         ? 'Use no máximo 80 caracteres'
         : undefined,
+    username: validateUsername(values.username, false),
     email: validateLoginForm(values).email,
     password: passwordError,
     confirmPassword: values.confirmPassword !== password ? 'As senhas não conferem' : undefined,

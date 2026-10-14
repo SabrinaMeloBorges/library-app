@@ -36,6 +36,8 @@ const buildItem = (id: string, title: string): LibraryItem => ({
     publisher: null,
     coverUrl: null,
     isbn: null,
+    description: null,
+    subjects: null,
     externalSource: null,
     externalId: null,
   },

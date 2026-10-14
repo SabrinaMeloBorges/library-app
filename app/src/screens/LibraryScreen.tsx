@@ -34,11 +34,17 @@ const defaultOrderFor = (sort: LibrarySortField): 'asc' | 'desc' =>
 
 const keyExtractor = (item: LibraryItem): string => item.id;
 
-export const LibraryScreen = ({ navigation }: MainTabScreenProps<'Library'>) => {
+export const LibraryScreen = ({ navigation, route }: MainTabScreenProps<'Library'>) => {
+  const routeStatus = route.params?.status;
   const theme = useAppTheme();
   const { width } = useWindowDimensions();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(routeStatus ?? 'ALL');
+  const [appliedRouteStatus, setAppliedRouteStatus] = useState(routeStatus);
+  if (routeStatus !== appliedRouteStatus) {
+    setAppliedRouteStatus(routeStatus);
+    setStatusFilter(routeStatus ?? 'ALL');
+  }
   const [sort, setSort] = useState<LibrarySortField>('updatedAt');
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
   const [viewMode, setViewMode] = useStoredPreference<ViewMode>(

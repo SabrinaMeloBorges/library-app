@@ -83,6 +83,22 @@ export const formatMinutes = (totalMinutes: number): string => {
   return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 };
 
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+export const formatRelative = (value: string | Date, now: Date = new Date()): string => {
+  const elapsed = now.getTime() - new Date(value).getTime();
+  if (elapsed < MINUTE_MS) return 'agora';
+  if (elapsed < HOUR_MS) return `há ${Math.floor(elapsed / MINUTE_MS)} min`;
+  if (elapsed < DAY_MS) return `há ${Math.floor(elapsed / HOUR_MS)} h`;
+  if (elapsed < 7 * DAY_MS) {
+    const days = Math.floor(elapsed / DAY_MS);
+    return days === 1 ? 'ontem' : `há ${days} dias`;
+  }
+  return formatDate(value);
+};
+
 export const greetingFor = (date: Date = new Date()): string => {
   const hour = date.getHours();
   if (hour < 12) return 'Bom dia';

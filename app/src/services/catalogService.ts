@@ -79,32 +79,79 @@ export const parseCatalogDoc = (doc: OpenLibraryDoc): CatalogBook | null => {
   };
 };
 
+export interface WorkDetails {
+  description: string | null;
+  subjects: string | null;
+}
+
+const MAX_DESCRIPTION_LENGTH = 5000;
+const MAX_SUBJECTS = 3;
+
+const requestJson = async (url: string, signal?: AbortSignal): Promise<unknown> => {
+  let response: Response;
+  try {
+    response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error;
+    throw new CatalogUnavailableError('Sem conexão com o catálogo. Verifique sua internet.');
+  }
+  if (!response.ok) throw new CatalogUnavailableError();
+  return response.json().catch(() => null);
+};
+
+const parseDocs = (body: unknown): CatalogBook[] => {
+  const docs = (body as { docs?: unknown })?.docs;
+  if (!Array.isArray(docs)) throw new CatalogUnavailableError('Resposta inesperada do catálogo.');
+  const seen = new Set<string>();
+  return docs
+    .map((doc) => parseCatalogDoc(doc as OpenLibraryDoc))
+    .filter((book): book is CatalogBook => {
+      if (!book || seen.has(book.externalId)) return false;
+      seen.add(book.externalId);
+      return true;
+    });
+};
+
+const searchWith = async (
+  criteria: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<CatalogBook[]> => {
+  const params = new URLSearchParams({ ...criteria, fields: FIELDS, limit: String(RESULT_LIMIT) });
+  return parseDocs(await requestJson(`${SEARCH_URL}?${params.toString()}`, signal));
+};
+
+export const parseWorkDetails = (body: unknown): WorkDetails => {
+  const work = (body ?? {}) as { description?: unknown; subjects?: unknown };
+  const rawDescription =
+    typeof work.description === 'string'
+      ? work.description
+      : typeof (work.description as { value?: unknown })?.value === 'string'
+        ? (work.description as { value: string }).value
+        : null;
+  const subjects = Array.isArray(work.subjects)
+    ? work.subjects
+        .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        .slice(0, MAX_SUBJECTS)
+        .join(', ')
+        .slice(0, MAX_TEXT_LENGTH)
+    : '';
+  return {
+    description: rawDescription?.trim().slice(0, MAX_DESCRIPTION_LENGTH) || null,
+    subjects: subjects || null,
+  };
+};
+
 export const catalogService = {
-  async search(term: string, signal?: AbortSignal): Promise<CatalogBook[]> {
-    const params = new URLSearchParams({ q: term, fields: FIELDS, limit: String(RESULT_LIMIT) });
-    let response: Response;
-    try {
-      response = await fetch(`${SEARCH_URL}?${params.toString()}`, {
-        signal,
-        headers: { Accept: 'application/json' },
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') throw error;
-      throw new CatalogUnavailableError('Sem conexão com o catálogo. Verifique sua internet.');
-    }
-    if (!response.ok) throw new CatalogUnavailableError();
+  search(term: string, signal?: AbortSignal): Promise<CatalogBook[]> {
+    return searchWith({ q: term }, signal);
+  },
 
-    const body: unknown = await response.json().catch(() => null);
-    const docs = (body as { docs?: unknown })?.docs;
-    if (!Array.isArray(docs)) throw new CatalogUnavailableError('Resposta inesperada do catálogo.');
+  searchBySubject(subject: string, signal?: AbortSignal): Promise<CatalogBook[]> {
+    return searchWith({ subject }, signal);
+  },
 
-    const seen = new Set<string>();
-    return docs
-      .map((doc) => parseCatalogDoc(doc as OpenLibraryDoc))
-      .filter((book): book is CatalogBook => {
-        if (!book || seen.has(book.externalId)) return false;
-        seen.add(book.externalId);
-        return true;
-      });
+  async workDetails(externalId: string): Promise<WorkDetails> {
+    if (!/^works\/OL\d+W$/.test(externalId)) return { description: null, subjects: null };
+    return parseWorkDetails(await requestJson(`https://openlibrary.org/${externalId}.json`));
   },
 };

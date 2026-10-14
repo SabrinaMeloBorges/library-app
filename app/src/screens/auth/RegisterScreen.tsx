@@ -21,6 +21,7 @@ type Field = keyof RegisterFormValues;
 
 const INITIAL_VALUES: RegisterFormValues = {
   name: '',
+  username: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -49,10 +50,12 @@ export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>)
     setIsSubmitting(true);
     setSubmitError(null);
     try {
+      const username = values.username.trim().toLowerCase();
       await register({
         name: values.name.trim(),
         email: values.email.trim().toLowerCase(),
         password: values.password,
+        ...(username ? { username } : {}),
       });
       showMessage('Conta criada. Boas-vindas ao Library!');
     } catch (error) {
@@ -83,6 +86,18 @@ export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>)
         error={errors.name}
         autoComplete="name"
         textContentType="name"
+        disabled={isSubmitting}
+      />
+      <FormTextField
+        label="Nome de usuário"
+        value={values.username}
+        onChangeText={updateField('username')}
+        error={errors.username}
+        hint="Opcional. É como amigos vão encontrar você. Deixe vazio para gerarmos um."
+        autoCapitalize="none"
+        autoCorrect={false}
+        maxLength={30}
+        left={<TextInput.Affix text="@" />}
         disabled={isSubmitting}
       />
       <FormTextField

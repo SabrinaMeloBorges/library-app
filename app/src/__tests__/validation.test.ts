@@ -99,6 +99,7 @@ describe('validateRegisterForm', () => {
   it('valida senha forte e confirmação', () => {
     const errors = validateRegisterForm({
       name: 'Ana',
+      username: '',
       email: 'ana@example.com',
       password: 'somenteletras',
       confirmPassword: 'diferente',

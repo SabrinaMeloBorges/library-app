@@ -6,7 +6,10 @@ export type GoalState = 'UPCOMING' | 'ACTIVE' | 'COMPLETED' | 'EXPIRED';
 export interface User {
   id: string;
   name: string;
+  username: string;
   email: string;
+  bio: string | null;
+  shareActivity: boolean;
   createdAt: string;
 }
 
@@ -23,6 +26,8 @@ export interface CatalogBookInfo {
   publisher: string | null;
   coverUrl: string | null;
   isbn: string | null;
+  description: string | null;
+  subjects: string | null;
   externalSource: string | null;
   externalId: string | null;
 }
@@ -49,6 +54,8 @@ export interface LibraryItemInput {
   publisher?: string | null;
   coverUrl?: string | null;
   isbn?: string | null;
+  description?: string | null;
+  subjects?: string | null;
   externalSource?: 'openlibrary' | null;
   externalId?: string | null;
   totalPages: number;
@@ -59,7 +66,9 @@ export interface LibraryItemInput {
   review?: string | null;
 }
 
-export type LibraryItemUpdate = Partial<Omit<LibraryItemInput, 'externalSource' | 'externalId'>>;
+export type LibraryItemUpdate = Partial<
+  Omit<LibraryItemInput, 'externalSource' | 'externalId' | 'description' | 'subjects'>
+>;
 
 export type LibrarySortField = 'title' | 'updatedAt' | 'createdAt' | 'progress' | 'rating';
 
@@ -106,6 +115,7 @@ export interface ReadingGoal {
   currentValue: number;
   percentage: number;
   state: GoalState;
+  completedAt: string | null;
   createdAt: string;
 }
 

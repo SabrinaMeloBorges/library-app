@@ -1,6 +1,6 @@
 # Library
 
-Aplicativo mobile de biblioteca pessoal para organizar livros, acompanhar o progresso de leitura, registrar sessões, definir metas e receber lembretes locais para manter o hábito de ler.
+Aplicativo mobile de biblioteca pessoal para organizar livros, acompanhar o progresso de leitura, registrar sessões, definir metas e receber lembretes locais para manter o hábito de ler. Também é social: você segue amigos, acompanha um feed de resenhas e conquistas, participa de clubes do livro com metas coletivas e conversa pelo chat.
 
 O repositório contém o aplicativo React Native com Expo (`/app`), a API REST própria em Node.js (`/api`) e a documentação do projeto.
 
@@ -38,6 +38,7 @@ Quem lê com frequência costuma espalhar as informações das leituras entre an
 - Calcula metas de livros, páginas, minutos ou dias de leitura a partir dos registros reais, sem contar páginas repetidas.
 - Mostra um painel com indicadores do ano e atividade recente.
 - Envia lembretes locais no horário e nos dias escolhidos.
+- Transforma a leitura em hábito compartilhado: amizades, feed, clubes do livro com metas em conjunto, conversas e conquistas comemoradas como no Duolingo.
 
 ## Justificativa pessoal
 
@@ -59,6 +60,12 @@ Quem lê com frequência costuma espalhar as informações das leituras entre an
 | Estatísticas | Indicadores do ano e totais, distribuição por status e progresso das metas. |
 | Lembretes | Notificações locais diárias ou semanais, seleção de horário e dias, notificação de teste, reconciliação ao abrir o app. |
 | Preferências | Tema claro/escuro e visualização da biblioteca persistidos no AsyncStorage. |
+| Amigos | Nome de usuário, busca de pessoas, seguir e deixar de seguir, perfis públicos com estantes, estatísticas e conquistas. Quem se segue mutuamente vira amigo. |
+| Feed | Livros iniciados e concluídos, resenhas, metas batidas e conquistas de quem você segue, com curtidas e comentários. O compartilhamento pode ser desligado nas configurações. |
+| Clubes do livro | Criação de clubes, convite por código ou adição de amigos, leitura do momento, metas coletivas que somam a leitura de todos os membros e ranking de contribuição. |
+| Conversas | Chat direto entre amigos e chat em grupo de cada clube, com contagem de não lidas. |
+| Conquistas | 16 conquistas em três níveis (bronze, prata e ouro), como “Primeira página”, “Cem páginas”, “Meta batida”, “Semana de leitura” e “Leitor voraz”, com tela de comemoração e publicação no feed. |
+| Explorar | Atalhos por gênero na tela inicial que pesquisam o catálogo por assunto; descrição e assuntos da obra trazidos do Open Library. |
 
 Status de leitura: Quero ler, Lendo, Concluído, Pausado e Abandonado.
 
@@ -75,15 +82,15 @@ Status de leitura: Quero ler, Lendo, Concluído, Pausado e Abandonado.
 ```
 library-app/
 ├── app/                         Aplicativo React Native (Expo)
-│   ├── App.tsx                  Providers (SafeArea, Theme, Paper, Auth) e navegação
+│   ├── App.tsx                  Providers (SafeArea, Theme, Paper, Snackbar, Auth, Celebration) e navegação
 │   ├── app.json                 Configuração do Expo e plugins
 │   └── src/
 │       ├── __tests__/           Testes do app (Jest)
-│       ├── components/          Componentes reutilizáveis (BookListItem, GoalCard, FormTextField...)
-│       ├── context/             AuthContext, ThemeContext e SnackbarContext
-│       ├── hooks/               useAuth, useBookSearch, useLibrary, useReadingGoals, useReminderSettings...
+│       ├── components/          Componentes reutilizáveis (BookListItem, FeedItemCard, AchievementBadge, ShelfCard...)
+│       ├── context/             AuthContext, ThemeContext, SnackbarContext e CelebrationContext
+│       ├── hooks/               useAuth, useBookSearch, useLibrary, useActivityList, useChat, useProfile...
 │       ├── navigation/          RootNavigator (Stack), MainTabs (Bottom Tabs) e tipos de rotas
-│       ├── screens/             Telas (auth, início, biblioteca, detalhes, formulários, metas...)
+│       ├── screens/             Telas (auth, início, biblioteca, comunidade, clubes, perfil, conversas...)
 │       ├── services/            Cliente HTTP, serviços da API, catálogo, SecureStore, AsyncStorage, notificações
 │       ├── theme/               Paleta, tema do Paper e espaçamentos
 │       ├── types/               Tipos da API
@@ -97,7 +104,7 @@ library-app/
 │   │   ├── config/              Variáveis de ambiente e injeção de dependências
 │   │   ├── controllers/         Controllers e presenters
 │   │   ├── docs/                Documento OpenAPI
-│   │   ├── domain/              Entidades e regras puras (progresso, métricas, metas, calendário)
+│   │   ├── domain/              Entidades e regras puras (progresso, métricas, metas, conquistas, calendário)
 │   │   ├── errors/              AppError
 │   │   ├── middlewares/         Autenticação, erros, segurança, logs
 │   │   ├── repositories/        Contratos, implementação Prisma e implementação em memória
@@ -161,7 +168,7 @@ SEED_DEMO_PASSWORD="escolha-uma-senha1" npm run db:seed
 $env:SEED_DEMO_PASSWORD="escolha-uma-senha1"; npm run db:seed
 ```
 
-O seed cria `demo@library.local` com três livros, três sessões e uma meta anual.
+O seed cria três leitores com a mesma senha: `demo@library.local` (Leitora Demo), `bruno@library.local` e `clara@library.local`. Eles já se seguem, participam do “Clube Dark Academia” (código `DARKACAD`) com uma meta coletiva, têm livros, sessões, conquistas, mensagens e atividades no feed.
 
 Inicie a API:
 
@@ -250,6 +257,7 @@ Arquivos `.env` reais não são versionados. Apenas os `.env.example` entram no 
 - Banco: MySQL 8 (Docker Compose em `docker-compose.yml`, imagem `mysql:8.4`).
 - ORM: Prisma. Modelo em `api/prisma/schema.prisma`.
 - Migration inicial: `api/prisma/migrations/20261013000000_init/migration.sql`, com tabelas, índices, chaves estrangeiras e restrições `CHECK` (página atual dentro do total, avaliação de 1 a 5, página final maior que a inicial, duração entre 1 e 1440 minutos, meta positiva e datas coerentes).
+- Migration social: `api/prisma/migrations/20261014000000_social_and_achievements/migration.sql`, com seguidores, clubes, membros, atividades, curtidas, comentários, conquistas, conversas e mensagens. Ela cria `username` para usuários já existentes antes de torná-lo obrigatório, então pode ser aplicada sobre um banco com dados.
 
 Comandos úteis (dentro de `/api`):
 
@@ -285,20 +293,23 @@ npm run lint
 npx expo-doctor
 ```
 
-Cobrem: validação dos formulários, parsing e erros do catálogo externo, `useBookSearch` (ocioso, carregamento, sucesso, vazio, erro e nova tentativa), `AuthContext` (login, token no header `Authorization`, persistência no SecureStore, restauração e logout), `ThemeContext` (persistência no AsyncStorage), agendamento/cancelamento/reconciliação de lembretes (com `expo-notifications` simulado), a biblioteca em FlatList navegando para os detalhes com `bookId` (com estados vazio e de erro com nova tentativa) e a tela de detalhes recebendo `bookId` (válido, inválido e inexistente, salvando alterações com feedback de sucesso).
+Cobrem: validação dos formulários, parsing e erros do catálogo externo, `useBookSearch` (ocioso, carregamento, sucesso, vazio, erro e nova tentativa), `AuthContext` (login, token no header `Authorization`, persistência no SecureStore, restauração e logout), `ThemeContext` (persistência no AsyncStorage), agendamento/cancelamento/reconciliação de lembretes (com `expo-notifications` simulado), a biblioteca em FlatList navegando para os detalhes com `bookId` (com estados vazio e de erro com nova tentativa), a tela de detalhes recebendo `bookId` (válido, inválido e inexistente, salvando alterações com feedback de sucesso), o cartão do feed (resenha, curtida, comentários e exaltação de conquistas) e a tela de comemoração de conquistas (exibição e marcação como vista).
+
+Na API, além do núcleo, os testes cobrem: nome de usuário, busca de pessoas, seguir/deixar de seguir, amizade mútua, feed com resenhas e livros concluídos, privacidade do compartilhamento, curtidas, comentários e permissão de exclusão, desbloqueio de conquistas (primeiro acesso, 100 páginas, meta batida, primeiro livro concluído), conclusão de metas, clubes (convite por código, só amigos podem ser adicionados, metas coletivas somando membros, saída e exclusão) e conversas (apenas entre amigos, não lidas, isolamento de quem não participa e chat do clube).
 
 ### Resultado da última execução
 
 | Verificação | Resultado |
 | --- | --- |
-| API — Vitest (memória) | 42 testes passando (7 arquivos) |
-| API — Vitest contra MySQL 8.4 (`npm run test:mysql`) | 27 testes de integração passando (4 arquivos) |
-| API — `prisma migrate deploy` + `prisma migrate diff` no MySQL 8.4 | migration aplicada, sem divergência entre banco e schema, 7 restrições `CHECK` ativas |
+| API — Vitest (memória) | 66 testes passando (12 arquivos) |
+| API — Vitest contra MySQL 8.4 (`npm run test:mysql`) | 47 testes de integração passando (8 arquivos) |
+| API — `prisma migrate deploy` + `prisma migrate diff` no MySQL 8.4 | 2 migrations aplicadas do zero, sem divergência entre banco e schema, 9 restrições `CHECK` ativas |
 | API — `tsc` e ESLint | sem erros |
-| App — Jest | 43 testes passando (8 suítes) |
-| App — `tsc`, ESLint e `expo-doctor` | sem erros (21/21 checks) |
+| App — Jest | 48 testes passando (9 suítes) |
+| App — `tsc`, ESLint e `expo-doctor` | sem erros |
 | App — `expo export --platform android` | bundle gerado |
-| Fluxo ponta a ponta na versão web (Edge headless) contra a API em modo memória | cadastro, busca no Open Library, cadastro de livro, sessão, metas, biblioteca, tema e estatísticas funcionando, sem erros de console |
+| Fluxo ponta a ponta na versão web (Edge headless) contra a API com MySQL | login, dashboard, feed, clubes, metas coletivas, chat, perfil, busca de pessoas, perfil de amigo, conquistas e detalhes do livro, nos temas claro e escuro, sem erros de console |
+| Cadastro de usuário novo na versão web | tela de comemoração da conquista “Primeira página” exibida |
 
 Não executado neste ambiente: notificações em aparelho físico. Veja [Limitações conhecidas](#limitações-conhecidas).
 
@@ -309,8 +320,10 @@ Não executado neste ambiente: notificações em aparelho físico. Veja [Limita�
 3. Em **Início**, toque em **Livro**, pesquise um título, adicione e confira os detalhes.
 4. Registre uma sessão e veja o progresso e o dashboard mudarem.
 5. Crie uma meta em **Metas**.
-6. Em **Perfil > Lembretes de leitura**, ative os lembretes, conceda a permissão, toque em **Enviar notificação de teste**, minimize o app e aguarde 5 segundos.
+6. Em **Perfil > Configurações > Lembretes de leitura**, ative os lembretes, conceda a permissão, toque em **Enviar notificação de teste**, minimize o app e aguarde 5 segundos.
 7. Altere o horário, salve e confira em "Lembretes agendados". Desative e confira que o número volta a zero.
+8. Em **Comunidade**, curta e comente uma resenha, abra o **Clube Dark Academia**, veja a meta coletiva e envie uma mensagem no chat do clube.
+9. Entre em outro aparelho (ou navegador) como `bruno@library.local` e confira a mensagem e a curtida.
 
 ## Endpoints
 
@@ -338,12 +351,40 @@ Base: `/api/v1`. Rotas marcadas com 🔒 exigem `Authorization: Bearer <token>`.
 | PATCH | `/goals/:id` 🔒 | Atualiza meta |
 | DELETE | `/goals/:id` 🔒 | Remove meta |
 | GET | `/statistics/overview` 🔒 | Dados do dashboard e da tela de estatísticas |
+| GET | `/users/search?q=` 🔒 | Busca pessoas por nome ou usuário |
+| PATCH | `/users/me` 🔒 | Atualiza nome, usuário, bio e compartilhamento no feed |
+| GET | `/users/me/friends` 🔒 | Amigos (seguem um ao outro) |
+| GET | `/users/:id` 🔒 | Perfil público: estantes, estatísticas, lendo agora e conquistas |
+| POST / DELETE | `/users/:id/follow` 🔒 | Segue / deixa de seguir |
+| GET | `/users/:id/followers` · `/users/:id/following` 🔒 | Listas de conexões |
+| GET | `/users/:id/activities` · `/users/:id/achievements` 🔒 | Atividades e conquistas da pessoa |
+| GET | `/feed` 🔒 | Atividades suas e de quem você segue (`before`, `limit`) |
+| POST / DELETE | `/activities/:id/likes` 🔒 | Curte / descurte |
+| GET / POST | `/activities/:id/comments` 🔒 | Lista / adiciona comentários |
+| DELETE | `/activities/:id/comments/:commentId` 🔒 | Remove comentário (autor do comentário ou da atividade) |
+| GET | `/achievements` 🔒 | Catálogo de conquistas com status e progresso |
+| GET | `/achievements/pending` 🔒 | Conquistas desbloqueadas ainda não comemoradas |
+| POST | `/achievements/seen` 🔒 | Marca conquistas como vistas |
+| GET / POST | `/clubs` 🔒 | Lista / cria clubes |
+| POST | `/clubs/join` 🔒 | Entra com código de convite |
+| GET / PATCH / DELETE | `/clubs/:id` 🔒 | Detalhes (membros, metas coletivas, contribuições) / edita / exclui (dono) |
+| POST | `/clubs/:id/members` 🔒 | Adiciona um amigo (dono) |
+| DELETE | `/clubs/:id/members/:userId` 🔒 | Remove membro (dono) ou sai do clube |
+| POST | `/clubs/:id/goals` 🔒 | Cria meta coletiva (dono) |
+| PATCH / DELETE | `/clubs/:id/goals/:goalId` 🔒 | Edita / remove meta coletiva (dono) |
+| GET | `/conversations` 🔒 | Conversas com última mensagem e não lidas |
+| POST | `/conversations/direct` 🔒 | Abre conversa direta com um amigo |
+| GET | `/conversations/:id` 🔒 | Detalhes da conversa |
+| GET / POST | `/conversations/:id/messages` 🔒 | Mensagens (`after` para buscar novas) / envia |
+| POST | `/conversations/:id/read` 🔒 | Marca como lida |
 
 Erros seguem o formato `{ "error": { "code", "message", "details": [{ "field", "message" }] } }`.
 
 ## DER do banco de dados
 
-Reflete exatamente as tabelas da migration `20261013000000_init`.
+Reflete exatamente as tabelas das migrations `20261013000000_init` e `20261014000000_social_and_achievements`. O núcleo de leitura e a parte social estão em dois diagramas para facilitar a leitura.
+
+### Núcleo de leitura
 
 ```mermaid
 erDiagram
@@ -354,12 +395,16 @@ erDiagram
     users |o--o{ books : "cadastra manualmente"
     books ||--o{ user_books : "aparece em"
     user_books ||--o{ reading_sessions : "recebe"
+    book_clubs |o--o{ reading_goals : "metas coletivas"
 
     users {
         CHAR(36) id PK
         VARCHAR(80) name
+        VARCHAR(30) username UK
         VARCHAR(160) email UK
         VARCHAR(255) password_hash
+        VARCHAR(160) bio
+        BOOLEAN share_activity
         DATETIME created_at
         DATETIME updated_at
     }
@@ -380,6 +425,8 @@ erDiagram
         INT page_count
         VARCHAR(500) cover_url
         VARCHAR(20) isbn
+        TEXT description
+        VARCHAR(255) subjects
         VARCHAR(40) external_source "UK composta"
         VARCHAR(120) external_id "UK composta"
         CHAR(36) created_by_user_id FK "nulo para catálogo externo"
@@ -418,21 +465,133 @@ erDiagram
 
     reading_goals {
         CHAR(36) id PK
-        CHAR(36) user_id FK
+        CHAR(36) user_id FK "quem criou"
+        CHAR(36) club_id FK "nulo para meta pessoal"
         VARCHAR(120) title
         ENUM type "BOOKS_FINISHED, PAGES_READ, MINUTES_READ, READING_DAYS"
         ENUM period "DAILY, WEEKLY, MONTHLY, YEARLY, CUSTOM"
         INT target_value "CHECK > 0"
         DATETIME start_date
         DATETIME end_date "CHECK >= start_date"
+        DATETIME completed_at "primeira vez que a meta foi batida"
         DATETIME created_at
         DATETIME updated_at
     }
+
+    book_clubs {
+        CHAR(36) id PK
+    }
 ```
 
-Índices: `user_books(user_id, status)`, `user_books(user_id, finished_at)`, `reading_sessions(user_id, read_at)`, `reading_sessions(user_book_id)`, `reading_goals(user_id, end_date)`, `books(title)`, `auth_sessions(user_id)`.
+### Social, clubes, conversas e conquistas
 
-Exclusões: remover um usuário remove em cascata sessões de autenticação, livros do usuário, sessões de leitura e metas. Remover um `user_book` remove suas sessões de leitura. Um livro do catálogo não pode ser removido enquanto estiver em alguma biblioteca (`RESTRICT`).
+```mermaid
+erDiagram
+    users ||--o{ follows : "segue"
+    users ||--o{ follows : "é seguido"
+    users ||--o{ book_clubs : "organiza"
+    users ||--o{ club_members : "participa"
+    book_clubs ||--o{ club_members : "tem"
+    books |o--o{ book_clubs : "leitura do momento"
+    users ||--o{ activities : "publica"
+    user_books |o--o{ activities : "sobre o livro"
+    reading_goals |o--o{ activities : "sobre a meta"
+    activities ||--o{ activity_likes : "recebe"
+    activities ||--o{ activity_comments : "recebe"
+    users ||--o{ activity_likes : "curte"
+    users ||--o{ activity_comments : "comenta"
+    users ||--o{ user_achievements : "desbloqueia"
+    book_clubs |o--|| conversations : "chat do clube"
+    conversations ||--o{ conversation_participants : "tem"
+    users ||--o{ conversation_participants : "participa"
+    conversations ||--o{ messages : "contém"
+    users ||--o{ messages : "envia"
+
+    follows {
+        CHAR(36) follower_id PK "FK users"
+        CHAR(36) following_id PK "FK users"
+        DATETIME created_at
+    }
+
+    book_clubs {
+        CHAR(36) id PK
+        VARCHAR(80) name
+        VARCHAR(500) description
+        VARCHAR(12) invite_code UK
+        CHAR(36) owner_id FK
+        CHAR(36) current_book_id FK
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    club_members {
+        CHAR(36) club_id PK "FK"
+        CHAR(36) user_id PK "FK"
+        ENUM role "OWNER, MEMBER"
+        DATETIME joined_at
+    }
+
+    activities {
+        CHAR(36) id PK
+        CHAR(36) user_id FK
+        ENUM type "BOOK_STARTED, BOOK_FINISHED, REVIEW_POSTED, GOAL_COMPLETED, ACHIEVEMENT_UNLOCKED"
+        CHAR(36) user_book_id FK
+        CHAR(36) goal_id FK
+        VARCHAR(40) achievement_code
+        DATETIME created_at
+    }
+
+    activity_likes {
+        CHAR(36) activity_id PK "FK"
+        CHAR(36) user_id PK "FK"
+        DATETIME created_at
+    }
+
+    activity_comments {
+        CHAR(36) id PK
+        CHAR(36) activity_id FK
+        CHAR(36) user_id FK
+        VARCHAR(500) body "CHECK não vazio"
+        DATETIME created_at
+    }
+
+    user_achievements {
+        CHAR(36) user_id PK "FK"
+        VARCHAR(40) code PK
+        DATETIME unlocked_at
+        DATETIME seen_at "nulo até a comemoração"
+    }
+
+    conversations {
+        CHAR(36) id PK
+        ENUM type "DIRECT, CLUB"
+        CHAR(36) club_id FK "UK"
+        VARCHAR(73) direct_key UK "par de usuários ordenado"
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    conversation_participants {
+        CHAR(36) conversation_id PK "FK"
+        CHAR(36) user_id PK "FK"
+        DATETIME last_read_at
+        DATETIME joined_at
+    }
+
+    messages {
+        CHAR(36) id PK
+        CHAR(36) conversation_id FK
+        CHAR(36) sender_id FK
+        VARCHAR(1000) body "CHECK não vazio"
+        DATETIME created_at
+    }
+```
+
+O catálogo de conquistas (nome, descrição, nível e limite) fica no código (`api/src/domain/achievements.ts`); o banco guarda apenas quais conquistas cada usuário desbloqueou e quando foram vistas.
+
+Índices: `user_books(user_id, status)`, `user_books(user_id, finished_at)`, `reading_sessions(user_id, read_at)`, `reading_sessions(user_book_id)`, `reading_goals(user_id, end_date)`, `reading_goals(club_id)`, `books(title)`, `auth_sessions(user_id)`, `follows(following_id)`, `club_members(user_id)`, `activities(user_id, created_at)`, `activities(created_at)`, `activity_comments(activity_id, created_at)`, `conversations(updated_at)`, `conversation_participants(user_id)`, `messages(conversation_id, created_at)`.
+
+Exclusões: remover um usuário remove em cascata seus dados (sessões, livros, metas, seguidores, clubes que organiza, atividades, curtidas, comentários, conquistas, participações e mensagens). Remover um `user_book` remove suas sessões e atividades. Excluir um clube remove membros, metas coletivas e a conversa. Um livro do catálogo não pode ser removido enquanto estiver em alguma biblioteca (`RESTRICT`).
 
 ## Telas
 
@@ -440,14 +599,18 @@ Capturas da versão web (viewport 390×844), geradas durante o teste ponta a pon
 
 | | | |
 | --- | --- | --- |
-| ![Login](docs/screenshots/login.png) | ![Início vazio](docs/screenshots/inicio-vazio.png) | ![Início](docs/screenshots/inicio.png) |
-| Login (tema escuro) | Estado vazio para novos usuários | Dashboard com dados reais |
-| ![Busca no catálogo](docs/screenshots/busca-catalogo.png) | ![Formulário](docs/screenshots/formulario-livro.png) | ![Detalhes](docs/screenshots/detalhes-livro.png) |
-| Busca no Open Library | Formulário com validação | Detalhes com histórico de sessões |
-| ![Biblioteca](docs/screenshots/biblioteca-lista.png) | ![Grade](docs/screenshots/biblioteca-grade.png) | ![Metas](docs/screenshots/metas.png) |
-| Biblioteca (FlatList) | Visualização em grade | Metas com progresso |
-| ![Estatísticas](docs/screenshots/estatisticas.png) | ![Lembretes](docs/screenshots/lembretes.png) | |
-| Estatísticas (tema claro) | Lembretes (na web, sem suporte a notificações) | |
+| ![Início](docs/screenshots/inicio.png) | ![Feed](docs/screenshots/feed.png) | ![Perfil](docs/screenshots/perfil.png) |
+| Início: lendo agora, gêneros e desafio | Feed com conquista exaltada e resenhas | Perfil com estantes e desafio anual |
+| ![Comemoração](docs/screenshots/comemoracao-conquista.png) | ![Conquistas](docs/screenshots/conquistas.png) | ![Detalhes](docs/screenshots/detalhes-livro.png) |
+| Comemoração de conquista | Conquistas por nível com progresso | Detalhes do livro |
+| ![Clubes](docs/screenshots/clubes.png) | ![Clube](docs/screenshots/clube-detalhes.png) | ![Conversa](docs/screenshots/conversa.png) |
+| Clubes do livro | Clube com meta coletiva e código | Chat do clube |
+| ![Encontrar pessoas](docs/screenshots/encontrar-pessoas.png) | ![Perfil de amigo](docs/screenshots/perfil-amigo.png) | ![Início escuro](docs/screenshots/inicio-escuro.png) |
+| Encontrar pessoas | Perfil de amigo com seguir e mensagem | Tema escuro |
+| ![Login](docs/screenshots/login.png) | ![Busca no catálogo](docs/screenshots/busca-catalogo.png) | ![Formulário](docs/screenshots/formulario-livro.png) |
+| Login | Busca no Open Library | Formulário com validação |
+| ![Estatísticas](docs/screenshots/estatisticas.png) | ![Lembretes](docs/screenshots/lembretes.png) | ![Perfil escuro](docs/screenshots/perfil-escuro.png) |
+| Estatísticas | Lembretes (na web, sem suporte a notificações) | Perfil no tema escuro |
 
 ## Mapa dos requisitos acadêmicos
 
@@ -455,20 +618,20 @@ Capturas da versão web (viewport 390×844), geradas durante o teste ponta a pon
 | --- | --- |
 | App React Native com Expo | `app/` (Expo SDK 57) |
 | API própria em Node.js | `api/` (Express 5) |
-| Stack + Bottom Tabs | `app/src/navigation/RootNavigator.tsx`, `MainTabs.tsx` |
-| Tela recebendo parâmetros | `BookDetailsScreen` (`bookId`), `SessionFormScreen` (`userBookId`, `sessionId`), `BookFormScreen`, `GoalFormScreen` |
+| Stack + Bottom Tabs | `app/src/navigation/RootNavigator.tsx`, `MainTabs.tsx` (Início, Biblioteca, Comunidade, Metas e Perfil) |
+| Tela recebendo parâmetros | `BookDetailsScreen` (`bookId`), `UserProfileScreen` (`userId`), `ClubDetailsScreen` (`clubId`), `ChatScreen` (`conversationId`), `SessionFormScreen`, `GoalFormScreen` |
 | Login integrado à API + token | `app/src/context/AuthContext.tsx`, `app/src/services/authService.ts`, `api/src/services/authService.ts` |
 | Token no header | Interceptor em `app/src/services/httpClient.ts` |
-| Context API | `AuthContext`, `ThemeContext`, `SnackbarContext` (mensagens de sucesso) |
+| Context API | `AuthContext`, `ThemeContext`, `SnackbarContext` (mensagens de sucesso), `CelebrationContext` (comemoração de conquistas) |
 | API externa com loading e erro | `app/src/services/catalogService.ts`, `hooks/useBookSearch.ts`, `screens/CatalogSearchScreen.tsx` |
-| FlatList com keyExtractor + detalhes | `screens/LibraryScreen.tsx`, `GoalsScreen.tsx`, `CatalogSearchScreen.tsx` |
+| FlatList com keyExtractor + detalhes | `screens/LibraryScreen.tsx`, `GoalsScreen.tsx`, `CatalogSearchScreen.tsx`, `community/FeedTab.tsx`, `ChatScreen.tsx` |
 | Formulário com TextInput, Switch e Button + validação | `screens/BookFormScreen.tsx`, `utils/validation.ts` (e validação Zod na API) |
 | AsyncStorage | `services/preferencesStorage.ts` (tema, visualização, lembretes) |
-| Hooks customizados | `useAuth`, `useBookSearch`, `useLibrary`, `useLibraryItem`, `useReadingGoals`, `useStatistics`, `useReminderSettings`, `useStoredPreference`, `useDebouncedValue`, `useAsyncResource` |
+| Hooks customizados | `useAuth`, `useBookSearch`, `useLibrary`, `useLibraryItem`, `useReadingGoals`, `useStatistics`, `useReminderSettings`, `useStoredPreference`, `useDebouncedValue`, `useAsyncResource`, `useActivityList`, `useChat`, `useProfile`, `useFollowToggle`, `useActionFeedback` |
 | React Native Paper + StyleSheet | Todas as telas e componentes |
 | Pastas screens, components, hooks, services, context | `app/src/` |
 | Recurso de dispositivo | Notificações locais: `services/notificationService.ts`, `services/reminderService.ts`, `screens/ReminderSettingsScreen.tsx` |
-| CRUD na API | `/library`, `/reading-sessions`, `/goals` |
+| CRUD na API | `/library`, `/reading-sessions`, `/goals`, `/clubs`, `/clubs/:id/goals`, `/activities/:id/comments` |
 | Endpoint próprio consumido | Todos os serviços em `app/src/services/*Service.ts` |
 | Banco relacional com migrations | `api/prisma/` |
 | DER | Seção acima |
@@ -482,6 +645,11 @@ Capturas da versão web (viewport 390×844), geradas durante o teste ponta a pon
 - **Páginas sem duplicidade**: páginas lidas são a união dos intervalos `(página inicial, página final]` de cada livro dentro do período. Reler um trecho não soma de novo.
 - **Datas**: dias, anos e períodos de metas são agrupados no fuso `APP_TIMEZONE`.
 - **Repositórios**: a API depende de contratos (`repositories/contracts.ts`). A implementação Prisma é usada com MySQL e a implementação em memória é usada nos testes e no modo de demonstração, sem duplicar regras de negócio.
+- **Design**: inspirado em aplicativos como StoryGraph, Fable, Goodreads e no mockup de referência (cartão de “lendo agora”, atalhos por gênero, perfil com estantes em formato de livro e desafio anual), mantendo a paleta Dark Academia, React Native Paper e tipografia Cormorant Garamond + Inter. Seguindo as boas práticas observadas, o registro de leitura fica na tela inicial e o social numa aba própria, com opção de não compartilhar atividades.
+- **Engajamento**: livros, sessões, metas, amizades e clubes acionam um serviço de engajamento (`EngagementService`) que registra atividades no feed e avalia conquistas e metas concluídas. Falhas nesse processamento são registradas no log e não impedem a operação principal.
+- **Conquistas**: inspiradas no Duolingo, com nomes próprios, três níveis e uma tela de comemoração. A API guarda o desbloqueio e quando a conquista foi vista; o app consulta as pendentes após ações relevantes e ao voltar para o primeiro plano.
+- **Metas coletivas**: são metas com `club_id`. O progresso soma o valor de cada membro no período (páginas sem duplicidade por pessoa), e a tela do clube mostra a contribuição de cada um.
+- **Privacidade**: perfis são visíveis para usuários autenticados; o feed mostra apenas você e quem você segue; conversas diretas só entre amigos (seguem um ao outro); somente amigos podem ser adicionados a clubes pelo dono, os demais entram com código.
 - **Segurança**: senhas com bcrypt (custo 12), mensagem genérica e comparação contra hash fictício no login para não revelar e-mails cadastrados, validação Zod com limites em todas as entradas, `express.json` limitado a 50 kB, Helmet, CORS por lista, rate limit geral e específico para autenticação, consultas sempre filtradas pelo `user_id` do token, erros centralizados e logs só com método, caminho sem query string, status e tempo.
 
 ## Limitações conhecidas
@@ -493,6 +661,10 @@ Capturas da versão web (viewport 390×844), geradas durante o teste ponta a pon
 - **Datas digitadas**: data e hora das sessões e datas de metas personalizadas são digitadas (AAAA-MM-DD e HH:MM), sem seletor nativo, para evitar dependências extras.
 - **Estatísticas**: são calculadas em memória a partir de todos os registros do usuário, adequado ao volume de uma biblioteca pessoal.
 - **Ícones e splash**: o projeto usa os ícones padrão do template do Expo.
+- **Chat sem tempo real**: as mensagens são buscadas a cada 4 segundos enquanto a conversa está aberta (polling), sem WebSocket nem notificação push de mensagens novas.
+- **Fotos de perfil**: os avatares usam as iniciais com cor derivada do usuário; envio de fotos não foi implementado.
+- **Moderação**: não há bloqueio de usuários nem denúncia de conteúdo; desligar o compartilhamento impede apenas novas atividades (as já publicadas continuam no feed).
+- **Feed**: atividades criadas diretamente no banco (como no seed) não passam pelas regras de engajamento; no uso normal elas são geradas pela API.
 
 ## Integrantes
 

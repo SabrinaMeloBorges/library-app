@@ -5,15 +5,26 @@ import { LoadingState } from '../components/StateViews';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useAuth } from '../hooks/useAuth';
 import { useThemeMode } from '../hooks/useThemeMode';
+import { AchievementsScreen } from '../screens/AchievementsScreen';
+import { ActivityCommentsScreen } from '../screens/ActivityCommentsScreen';
 import { BookDetailsScreen } from '../screens/BookDetailsScreen';
 import { BookFormScreen } from '../screens/BookFormScreen';
 import { CatalogSearchScreen } from '../screens/CatalogSearchScreen';
+import { ChatScreen } from '../screens/ChatScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
+import { FindPeopleScreen } from '../screens/FindPeopleScreen';
+import { FollowListScreen } from '../screens/FollowListScreen';
 import { GoalFormScreen } from '../screens/GoalFormScreen';
 import { ReminderSettingsScreen } from '../screens/ReminderSettingsScreen';
 import { SessionFormScreen } from '../screens/SessionFormScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { StatisticsScreen } from '../screens/StatisticsScreen';
+import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
+import { AddClubMembersScreen } from '../screens/clubs/AddClubMembersScreen';
+import { ClubDetailsScreen } from '../screens/clubs/ClubDetailsScreen';
+import { ClubFormScreen } from '../screens/clubs/ClubFormScreen';
 import { toNavigationTheme } from '../theme/paperTheme';
 import { fontFamilies } from '../theme/spacing';
 import { MainTabs } from './MainTabs';
@@ -70,6 +81,53 @@ export const RootNavigator = () => {
               name="ReminderSettings"
               component={ReminderSettingsScreen}
               options={{ title: 'Lembretes' }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ title: 'Configurações' }}
+            />
+            <Stack.Screen
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ title: 'Editar perfil' }}
+            />
+            <Stack.Screen
+              name="FindPeople"
+              component={FindPeopleScreen}
+              options={{ title: 'Encontrar pessoas' }}
+            />
+            <Stack.Screen
+              name="UserProfile"
+              component={UserProfileScreen}
+              options={{ title: 'Perfil' }}
+            />
+            <Stack.Screen
+              name="FollowList"
+              component={FollowListScreen}
+              options={{ title: 'Conexões' }}
+            />
+            <Stack.Screen
+              name="ClubDetails"
+              component={ClubDetailsScreen}
+              options={{ title: 'Clube' }}
+            />
+            <Stack.Screen name="ClubForm" component={ClubFormScreen} options={{ title: 'Clube' }} />
+            <Stack.Screen
+              name="AddClubMembers"
+              component={AddClubMembersScreen}
+              options={{ title: 'Adicionar amigos' }}
+            />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Conversa' }} />
+            <Stack.Screen
+              name="ActivityComments"
+              component={ActivityCommentsScreen}
+              options={{ title: 'Comentários' }}
+            />
+            <Stack.Screen
+              name="Achievements"
+              component={AchievementsScreen}
+              options={{ title: 'Conquistas' }}
             />
           </Stack.Group>
         ) : (
