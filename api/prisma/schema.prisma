@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReadingStatus {
+  WANT_TO_READ
+  READING
+  FINISHED
+  PAUSED
+  ABANDONED
+}
+
+enum GoalType {
+  BOOKS_FINISHED
+  PAGES_READ
+  MINUTES_READ
+  READING_DAYS
+}
+
+enum GoalPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Char(36)
+  name         String   @db.VarChar(80)
+  email        String   @unique @db.VarChar(160)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  authSessions    AuthSession[]
+  userBooks       UserBook[]
+  readingSessions ReadingSession[]
+  readingGoals    ReadingGoal[]
+  createdBooks    Book[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        String    @id @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model Book {
+  id              String   @id @default(uuid()) @db.Char(36)
+  title           String   @db.VarChar(255)
+  authors         String   @db.VarChar(255)
+  publisher       String?  @db.VarChar(160)
+  pageCount       Int?     @map("page_count")
+  coverUrl        String?  @map("cover_url") @db.VarChar(500)
+  isbn            String?  @db.VarChar(20)
+  externalSource  String?  @map("external_source") @db.VarChar(40)
+  externalId      String?  @map("external_id") @db.VarChar(120)
+  createdByUserId String?  @map("created_by_user_id") @db.Char(36)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  createdBy User?      @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  userBooks UserBook[]
+
+  @@unique([externalSource, externalId])
+  @@index([title])
+  @@map("books")
+}
+
+model UserBook {
+  id          String        @id @default(uuid()) @db.Char(36)
+  userId      String        @map("user_id") @db.Char(36)
+  bookId      String        @map("book_id") @db.Char(36)
+  status      ReadingStatus @default(WANT_TO_READ)
+  totalPages  Int           @map("total_pages")
+  currentPage Int           @default(0) @map("current_page")
+  rating      Int?          @db.TinyInt
+  isFavorite  Boolean       @default(false) @map("is_favorite")
+  review      String?       @db.Text
+  startedAt   DateTime?     @map("started_at")
+  finishedAt  DateTime?     @map("finished_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book            Book             @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  readingSessions ReadingSession[]
+
+  @@unique([userId, bookId])
+  @@index([userId, status])
+  @@index([userId, finishedAt])
+  @@map("user_books")
+}
+
+model ReadingSession {
+  id              String   @id @default(uuid()) @db.Char(36)
+  userId          String   @map("user_id") @db.Char(36)
+  userBookId      String   @map("user_book_id") @db.Char(36)
+  startPage       Int      @map("start_page")
+  endPage         Int      @map("end_page")
+  durationMinutes Int      @map("duration_minutes")
+  readAt          DateTime @map("read_at")
+  note            String?  @db.VarChar(1000)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userBook UserBook @relation(fields: [userBookId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userBookId])
+  @@map("reading_sessions")
+}
+
+model ReadingGoal {
+  id          String     @id @default(uuid()) @db.Char(36)
+  userId      String     @map("user_id") @db.Char(36)
+  title       String     @db.VarChar(120)
+  type        GoalType
+  period      GoalPeriod
+  targetValue Int        @map("target_value")
+  startDate   DateTime   @map("start_date")
+  endDate     DateTime   @map("end_date")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, endDate])
+  @@map("reading_goals")
+}
