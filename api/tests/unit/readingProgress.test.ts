@@ -54,6 +54,18 @@ describe('resolveProgress', () => {
     expect(result.status).toBe('PAUSED');
     expect(result.currentPage).toBe(50);
   });
+
+  it('considera leitura iniciada quando "quero ler" vem com página atual', () => {
+    const result = resolveProgress(base, { status: 'WANT_TO_READ', currentPage: 20 }, now);
+    expect(result.status).toBe('READING');
+    expect(result.currentPage).toBe(20);
+  });
+
+  it('volta o livro para a fila zerando a página atual', () => {
+    const reading: ProgressState = { ...base, status: 'READING', currentPage: 90, startedAt: now };
+    const result = resolveProgress(reading, { status: 'WANT_TO_READ' }, now);
+    expect(result).toMatchObject({ status: 'WANT_TO_READ', currentPage: 0, startedAt: null });
+  });
 });
 
 describe('progressPercentage', () => {

@@ -29,18 +29,19 @@ const SORTERS: Record<LibraryQuery['sort'], (a: UserBookWithBook, b: UserBookWit
     rating: (a, b) => (a.rating ?? 0) - (b.rating ?? 0),
   };
 
-const pickBookChanges = (input: UpdateLibraryItemInput): Partial<BookData> => {
-  const fields: (keyof BookEditableFields)[] = [
-    'title',
-    'authors',
-    'publisher',
-    'coverUrl',
-    'isbn',
-  ];
+const BOOK_EDITABLE_FIELDS: (keyof BookEditableFields)[] = [
+  'title',
+  'authors',
+  'publisher',
+  'coverUrl',
+  'isbn',
+];
+
+const pickBookChanges = (input: UpdateLibraryItemInput, current: Book): Partial<BookData> => {
   const changes: Partial<BookData> = {};
-  for (const field of fields) {
+  for (const field of BOOK_EDITABLE_FIELDS) {
     const value = input[field];
-    if (value !== undefined) Object.assign(changes, { [field]: value });
+    if (value !== undefined && value !== current[field]) Object.assign(changes, { [field]: value });
   }
   return changes;
 };
@@ -109,7 +110,11 @@ export class LibraryService {
       ]);
     }
 
-    const bookId = await this.applyBookChanges(userId, current, pickBookChanges(input));
+    const bookId = await this.applyBookChanges(
+      userId,
+      current,
+      pickBookChanges(input, current.book),
+    );
     const progress = resolveProgress(
       current,
       { status: input.status, currentPage: input.currentPage, totalPages: input.totalPages },
