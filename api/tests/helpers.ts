@@ -1,8 +1,12 @@
+import { randomUUID } from 'node:crypto';
+import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config/env';
+import type { Repositories } from '../src/repositories/contracts';
 import { createMemoryRepositories } from '../src/repositories/memory/memoryRepositories';
+import { createPrismaRepositories } from '../src/repositories/prisma/prismaRepositories';
 
 export const testConfig = loadConfig({
   NODE_ENV: 'test',
@@ -14,10 +18,23 @@ export const testConfig = loadConfig({
   AUTH_RATE_LIMIT_MAX_REQUESTS: '10000',
 });
 
-export const buildTestApp = (): Express =>
-  createApp({ config: testConfig, repositories: createMemoryRepositories() });
+let prisma: PrismaClient | null = null;
 
-let userCounter = 0;
+const createTestRepositories = (): Repositories => {
+  if (process.env.TEST_WITH_MYSQL !== '1') return createMemoryRepositories();
+  const url = process.env.TEST_DATABASE_URL;
+  if (!url) throw new Error('Defina TEST_DATABASE_URL para rodar os testes com MySQL');
+  prisma ??= new PrismaClient({ datasources: { db: { url } } });
+  return createPrismaRepositories(prisma);
+};
+
+export const disconnectTestDatabase = async (): Promise<void> => {
+  await prisma?.$disconnect();
+  prisma = null;
+};
+
+export const buildTestApp = (): Express =>
+  createApp({ config: testConfig, repositories: createTestRepositories() });
 
 export interface TestUser {
   token: string;
@@ -27,8 +44,7 @@ export interface TestUser {
 }
 
 export const registerUser = async (app: Express, name = 'Leitora'): Promise<TestUser> => {
-  userCounter += 1;
-  const email = `leitora${userCounter}@example.com`;
+  const email = `leitora-${randomUUID()}@example.com`;
   const password = 'senhaSegura123';
   const response = await request(app)
     .post('/api/v1/auth/register')
