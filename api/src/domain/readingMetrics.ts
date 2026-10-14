@@ -43,6 +43,28 @@ export const countReadingDays = (
   timeZone: string,
 ): number => new Set(sessions.map((session) => toDayKey(session.readAt, timeZone))).size;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const dayNumber = (dayKey: string): number =>
+  Math.round(Date.parse(`${dayKey}T00:00:00Z`) / DAY_MS);
+
+export const longestReadingStreak = (
+  sessions: Pick<ReadingSession, 'readAt'>[],
+  timeZone: string,
+): number => {
+  const days = [
+    ...new Set(sessions.map((session) => dayNumber(toDayKey(session.readAt, timeZone)))),
+  ];
+  days.sort((a, b) => a - b);
+  let longest = 0;
+  let current = 0;
+  days.forEach((day, index) => {
+    current = index > 0 && day - days[index - 1] === 1 ? current + 1 : 1;
+    longest = Math.max(longest, current);
+  });
+  return longest;
+};
+
 export const filterSessionsInRange = <T extends Pick<ReadingSession, 'readAt'>>(
   sessions: T[],
   range: DayRange,

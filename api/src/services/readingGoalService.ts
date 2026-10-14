@@ -1,32 +1,48 @@
 import { parseDateOnly, toDateOnlyKey } from '../domain/calendar';
-import type { ReadingGoal, ReadingSessionWithBook, UserBookWithBook } from '../domain/entities';
+import type { ReadingGoal } from '../domain/entities';
 import { calculateGoalProgress, type GoalProgress } from '../domain/goalProgress';
 import type { ReadingSnapshot } from '../domain/readingMetrics';
 import { AppError } from '../errors/AppError';
-import type {
-  ReadingGoalData,
-  ReadingGoalRepository,
-  ReadingSessionRepository,
-  UserBookRepository,
-} from '../repositories/contracts';
+import type { ReadingGoalData, ReadingGoalRepository } from '../repositories/contracts';
 import type { CreateGoalInput, UpdateGoalInput } from '../validators/goalValidators';
+import type { EngagementHooks } from './engagementService';
+import type { DetailedSnapshot, ReadingSnapshotService } from './readingSnapshotService';
 
 const GOAL_NOT_FOUND = 'Meta não encontrada';
+const INVALID_RANGE = 'A data de término deve ser igual ou posterior à data de início';
 
 export interface GoalWithProgress extends ReadingGoal {
   progress: GoalProgress;
 }
 
-export interface DetailedSnapshot extends ReadingSnapshot {
-  sessions: ReadingSessionWithBook[];
-  userBooks: UserBookWithBook[];
-}
+export const toGoalData = (input: CreateGoalInput): ReadingGoalData => ({
+  ...input,
+  startDate: parseDateOnly(input.startDate),
+  endDate: parseDateOnly(input.endDate),
+});
+
+export const buildGoalChanges = (
+  current: ReadingGoal,
+  input: UpdateGoalInput,
+): Partial<ReadingGoalData> => {
+  const startDate = input.startDate ?? toDateOnlyKey(current.startDate);
+  const endDate = input.endDate ?? toDateOnlyKey(current.endDate);
+  if (endDate < startDate) {
+    throw AppError.validation(INVALID_RANGE, [{ field: 'endDate', message: INVALID_RANGE }]);
+  }
+  const { startDate: _start, endDate: _end, ...rest } = input;
+  return {
+    ...rest,
+    ...(input.startDate ? { startDate: parseDateOnly(input.startDate) } : {}),
+    ...(input.endDate ? { endDate: parseDateOnly(input.endDate) } : {}),
+  };
+};
 
 export class ReadingGoalService {
   constructor(
     private readonly goals: ReadingGoalRepository,
-    private readonly sessions: ReadingSessionRepository,
-    private readonly userBooks: UserBookRepository,
+    private readonly snapshots: ReadingSnapshotService,
+    private readonly engagement: EngagementHooks,
     private readonly timeZone: string,
   ) {}
 
@@ -44,35 +60,16 @@ export class ReadingGoalService {
   }
 
   async create(userId: string, input: CreateGoalInput): Promise<GoalWithProgress> {
-    const goal = await this.goals.create(userId, {
-      ...input,
-      startDate: parseDateOnly(input.startDate),
-      endDate: parseDateOnly(input.endDate),
-    });
-    return this.withProgress(goal, await this.loadSnapshot(userId));
+    const goal = await this.goals.create(userId, toGoalData(input));
+    await this.engagement.readingChanged(userId);
+    return this.get(userId, goal.id);
   }
 
   async update(userId: string, id: string, input: UpdateGoalInput): Promise<GoalWithProgress> {
     const current = await this.findGoal(userId, id);
-    const startDate = input.startDate ?? toDateOnlyKey(current.startDate);
-    const endDate = input.endDate ?? toDateOnlyKey(current.endDate);
-    if (endDate < startDate) {
-      throw AppError.validation('A data de término deve ser igual ou posterior à data de início', [
-        {
-          field: 'endDate',
-          message: 'A data de término deve ser igual ou posterior à data de início',
-        },
-      ]);
-    }
-
-    const { startDate: _start, endDate: _end, ...rest } = input;
-    const changes: Partial<ReadingGoalData> = {
-      ...rest,
-      ...(input.startDate ? { startDate: parseDateOnly(input.startDate) } : {}),
-      ...(input.endDate ? { endDate: parseDateOnly(input.endDate) } : {}),
-    };
-    const goal = await this.goals.update(userId, id, changes);
-    return this.withProgress(goal, await this.loadSnapshot(userId));
+    await this.goals.update(userId, id, buildGoalChanges(current, input));
+    await this.engagement.readingChanged(userId);
+    return this.get(userId, id);
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -84,12 +81,8 @@ export class ReadingGoalService {
     return { ...goal, progress: calculateGoalProgress(goal, snapshot, new Date(), this.timeZone) };
   }
 
-  async loadSnapshot(userId: string): Promise<DetailedSnapshot> {
-    const [sessions, userBooks] = await Promise.all([
-      this.sessions.list(userId, {}),
-      this.userBooks.list(userId),
-    ]);
-    return { sessions, userBooks };
+  loadSnapshot(userId: string): Promise<DetailedSnapshot> {
+    return this.snapshots.load(userId);
   }
 
   private async findGoal(userId: string, id: string): Promise<ReadingGoal> {

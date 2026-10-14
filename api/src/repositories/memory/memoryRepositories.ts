@@ -18,43 +18,41 @@ import type {
   UserBookRepository,
   UserRepository,
 } from '../contracts';
-
-interface MemoryStore {
-  users: Map<string, User>;
-  authSessions: Map<string, AuthSession>;
-  books: Map<string, Book>;
-  userBooks: Map<string, UserBook>;
-  readingSessions: Map<string, ReadingSession>;
-  readingGoals: Map<string, ReadingGoal>;
-}
-
-const createStore = (): MemoryStore => ({
-  users: new Map(),
-  authSessions: new Map(),
-  books: new Map(),
-  userBooks: new Map(),
-  readingSessions: new Map(),
-  readingGoals: new Map(),
-});
-
-const requireOwned = <T extends { userId: string }>(
-  map: Map<string, T>,
-  userId: string,
-  id: string,
-): T => {
-  const item = map.get(id);
-  if (!item || item.userId !== userId) throw new Error('Registro não encontrado para o usuário');
-  return item;
-};
+import { createMemorySocialRepositories } from './socialRepositories';
+import { createStore, deleteWhere, requireOwned, toUserSummary, type MemoryStore } from './store';
 
 const createUserRepository = (store: MemoryStore): UserRepository => ({
   findById: async (id) => store.users.get(id) ?? null,
   findByEmail: async (email) =>
     [...store.users.values()].find((user) => user.email === email) ?? null,
+  findByUsername: async (username) =>
+    [...store.users.values()].find((user) => user.username === username) ?? null,
   create: async (data) => {
-    const user: User = { id: randomUUID(), createdAt: new Date(), ...data };
+    const user: User = {
+      id: randomUUID(),
+      createdAt: new Date(),
+      bio: null,
+      shareActivity: true,
+      ...data,
+    };
     store.users.set(user.id, user);
     return user;
+  },
+  update: async (id, data) => {
+    const current = store.users.get(id);
+    if (!current) throw new Error('Usuário não encontrado');
+    const updated = { ...current, ...data };
+    store.users.set(id, updated);
+    return updated;
+  },
+  search: async (query, excludeUserId, limit) => {
+    const term = query.toLowerCase();
+    return [...store.users.values()]
+      .filter((user) => user.id !== excludeUserId)
+      .filter((user) => `${user.name} ${user.username}`.toLowerCase().includes(term))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, limit)
+      .map((user) => toUserSummary(store, user.id));
   },
 });
 
@@ -147,9 +145,8 @@ const createUserBookRepository = (store: MemoryStore): UserBookRepository => {
       const item = store.userBooks.get(id);
       if (!item || item.userId !== userId) return;
       store.userBooks.delete(id);
-      for (const [sessionId, session] of store.readingSessions) {
-        if (session.userBookId === id) store.readingSessions.delete(sessionId);
-      }
+      deleteWhere(store.readingSessions, (session) => session.userBookId === id);
+      deleteWhere(store.activities, (activity) => activity.userBookId === id);
     },
   };
 };
@@ -196,31 +193,72 @@ const createReadingSessionRepository = (store: MemoryStore): ReadingSessionRepos
   },
 });
 
-const createReadingGoalRepository = (store: MemoryStore): ReadingGoalRepository => ({
-  list: async (userId) =>
-    [...store.readingGoals.values()]
-      .filter((goal) => goal.userId === userId)
-      .sort((a, b) => a.endDate.getTime() - b.endDate.getTime()),
-  findById: async (userId, id) => {
-    const goal = store.readingGoals.get(id);
-    return goal && goal.userId === userId ? goal : null;
-  },
-  create: async (userId, data) => {
-    const goal: ReadingGoal = { id: randomUUID(), userId, createdAt: new Date(), ...data };
-    store.readingGoals.set(goal.id, goal);
-    return goal;
-  },
-  update: async (userId, id, data) => {
-    const current = requireOwned(store.readingGoals, userId, id);
+const byEndDate = (a: ReadingGoal, b: ReadingGoal): number =>
+  a.endDate.getTime() - b.endDate.getTime();
+
+const createReadingGoalRepository = (store: MemoryStore): ReadingGoalRepository => {
+  const isPersonalGoalOf = (goal: ReadingGoal | undefined, userId: string): goal is ReadingGoal =>
+    goal !== undefined && goal.userId === userId && goal.clubId === null;
+
+  const removeGoal = (id: string): void => {
+    store.readingGoals.delete(id);
+    deleteWhere(store.activities, (activity) => activity.goalId === id);
+  };
+
+  const replace = (id: string, data: Partial<ReadingGoal>): ReadingGoal => {
+    const current = store.readingGoals.get(id);
+    if (!current) throw new Error('Meta não encontrada');
     const updated = { ...current, ...data };
     store.readingGoals.set(id, updated);
     return updated;
-  },
-  delete: async (userId, id) => {
-    const goal = store.readingGoals.get(id);
-    if (goal && goal.userId === userId) store.readingGoals.delete(id);
-  },
-});
+  };
+
+  return {
+    list: async (userId) =>
+      [...store.readingGoals.values()]
+        .filter((goal) => isPersonalGoalOf(goal, userId))
+        .sort(byEndDate),
+    findById: async (userId, id) => {
+      const goal = store.readingGoals.get(id);
+      return isPersonalGoalOf(goal, userId) ? goal : null;
+    },
+    create: async (userId, data, clubId) => {
+      const goal: ReadingGoal = {
+        id: randomUUID(),
+        userId,
+        clubId: clubId ?? null,
+        completedAt: null,
+        createdAt: new Date(),
+        ...data,
+      };
+      store.readingGoals.set(goal.id, goal);
+      return goal;
+    },
+    update: async (userId, id, data) => {
+      if (!isPersonalGoalOf(store.readingGoals.get(id), userId)) {
+        throw new Error('Meta não encontrada para o usuário');
+      }
+      return replace(id, data);
+    },
+    delete: async (userId, id) => {
+      if (isPersonalGoalOf(store.readingGoals.get(id), userId)) removeGoal(id);
+    },
+    listByClubIds: async (clubIds) =>
+      [...store.readingGoals.values()]
+        .filter((goal) => goal.clubId !== null && clubIds.includes(goal.clubId))
+        .sort(byEndDate),
+    findClubGoal: async (clubId, id) => {
+      const goal = store.readingGoals.get(id);
+      return goal && goal.clubId === clubId ? goal : null;
+    },
+    updateById: async (id, data) => replace(id, data),
+    deleteById: async (id) => removeGoal(id),
+    markCompleted: async (id, completedAt) => {
+      const goal = store.readingGoals.get(id);
+      if (goal && !goal.completedAt) replace(id, { completedAt });
+    },
+  };
+};
 
 export const createMemoryRepositories = (): Repositories => {
   const store = createStore();
@@ -231,5 +269,6 @@ export const createMemoryRepositories = (): Repositories => {
     userBooks: createUserBookRepository(store),
     readingSessions: createReadingSessionRepository(store),
     readingGoals: createReadingGoalRepository(store),
+    ...createMemorySocialRepositories(store),
   };
 };

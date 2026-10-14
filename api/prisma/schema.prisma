@@ -30,19 +30,50 @@ enum GoalPeriod {
   CUSTOM
 }
 
-model User {
-  id           String   @id @default(uuid()) @db.Char(36)
-  name         String   @db.VarChar(80)
-  email        String   @unique @db.VarChar(160)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+enum ClubRole {
+  OWNER
+  MEMBER
+}
 
-  authSessions    AuthSession[]
-  userBooks       UserBook[]
-  readingSessions ReadingSession[]
-  readingGoals    ReadingGoal[]
-  createdBooks    Book[]
+enum ActivityType {
+  BOOK_STARTED
+  BOOK_FINISHED
+  REVIEW_POSTED
+  GOAL_COMPLETED
+  ACHIEVEMENT_UNLOCKED
+}
+
+enum ConversationType {
+  DIRECT
+  CLUB
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Char(36)
+  name          String   @db.VarChar(80)
+  username      String   @unique @db.VarChar(30)
+  email         String   @unique @db.VarChar(160)
+  passwordHash  String   @map("password_hash") @db.VarChar(255)
+  bio           String?  @db.VarChar(160)
+  shareActivity Boolean  @default(true) @map("share_activity")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  authSessions     AuthSession[]
+  userBooks        UserBook[]
+  readingSessions  ReadingSession[]
+  readingGoals     ReadingGoal[]
+  createdBooks     Book[]
+  following        Follow[]                  @relation("FollowFollower")
+  followers        Follow[]                  @relation("FollowFollowing")
+  ownedClubs       BookClub[]
+  clubMemberships  ClubMember[]
+  activities       Activity[]
+  activityLikes    ActivityLike[]
+  activityComments ActivityComment[]
+  achievements     UserAchievement[]
+  conversations    ConversationParticipant[]
+  messages         Message[]
 
   @@map("users")
 }
@@ -68,6 +99,8 @@ model Book {
   pageCount       Int?     @map("page_count")
   coverUrl        String?  @map("cover_url") @db.VarChar(500)
   isbn            String?  @db.VarChar(20)
+  description     String?  @db.Text
+  subjects        String?  @db.VarChar(255)
   externalSource  String?  @map("external_source") @db.VarChar(40)
   externalId      String?  @map("external_id") @db.VarChar(120)
   createdByUserId String?  @map("created_by_user_id") @db.Char(36)
@@ -76,6 +109,7 @@ model Book {
 
   createdBy User?      @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   userBooks UserBook[]
+  clubs     BookClub[]
 
   @@unique([externalSource, externalId])
   @@index([title])
@@ -100,6 +134,7 @@ model UserBook {
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   book            Book             @relation(fields: [bookId], references: [id], onDelete: Restrict)
   readingSessions ReadingSession[]
+  activities      Activity[]
 
   @@unique([userId, bookId])
   @@index([userId, status])
@@ -130,17 +165,175 @@ model ReadingSession {
 model ReadingGoal {
   id          String     @id @default(uuid()) @db.Char(36)
   userId      String     @map("user_id") @db.Char(36)
+  clubId      String?    @map("club_id") @db.Char(36)
   title       String     @db.VarChar(120)
   type        GoalType
   period      GoalPeriod
   targetValue Int        @map("target_value")
   startDate   DateTime   @map("start_date")
   endDate     DateTime   @map("end_date")
+  completedAt DateTime?  @map("completed_at")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club       BookClub?  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  activities Activity[]
 
   @@index([userId, endDate])
+  @@index([clubId])
   @@map("reading_goals")
+}
+
+model Follow {
+  followerId  String   @map("follower_id") @db.Char(36)
+  followingId String   @map("following_id") @db.Char(36)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model BookClub {
+  id            String   @id @default(uuid()) @db.Char(36)
+  name          String   @db.VarChar(80)
+  description   String?  @db.VarChar(500)
+  inviteCode    String   @unique @map("invite_code") @db.VarChar(12)
+  ownerId       String   @map("owner_id") @db.Char(36)
+  currentBookId String?  @map("current_book_id") @db.Char(36)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  currentBook  Book?         @relation(fields: [currentBookId], references: [id], onDelete: SetNull)
+  members      ClubMember[]
+  goals        ReadingGoal[]
+  conversation Conversation?
+
+  @@index([ownerId])
+  @@map("book_clubs")
+}
+
+model ClubMember {
+  clubId   String   @map("club_id") @db.Char(36)
+  userId   String   @map("user_id") @db.Char(36)
+  role     ClubRole @default(MEMBER)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, userId])
+  @@index([userId])
+  @@map("club_members")
+}
+
+model Activity {
+  id              String       @id @default(uuid()) @db.Char(36)
+  userId          String       @map("user_id") @db.Char(36)
+  type            ActivityType
+  userBookId      String?      @map("user_book_id") @db.Char(36)
+  goalId          String?      @map("goal_id") @db.Char(36)
+  achievementCode String?      @map("achievement_code") @db.VarChar(40)
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userBook UserBook?         @relation(fields: [userBookId], references: [id], onDelete: Cascade)
+  goal     ReadingGoal?      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  likes    ActivityLike[]
+  comments ActivityComment[]
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([userBookId])
+  @@map("activities")
+}
+
+model ActivityLike {
+  activityId String   @map("activity_id") @db.Char(36)
+  userId     String   @map("user_id") @db.Char(36)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("activity_likes")
+}
+
+model ActivityComment {
+  id         String   @id @default(uuid()) @db.Char(36)
+  activityId String   @map("activity_id") @db.Char(36)
+  userId     String   @map("user_id") @db.Char(36)
+  body       String   @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, createdAt])
+  @@index([userId])
+  @@map("activity_comments")
+}
+
+model UserAchievement {
+  userId     String    @map("user_id") @db.Char(36)
+  code       String    @db.VarChar(40)
+  unlockedAt DateTime  @default(now()) @map("unlocked_at")
+  seenAt     DateTime? @map("seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, code])
+  @@map("user_achievements")
+}
+
+model Conversation {
+  id        String           @id @default(uuid()) @db.Char(36)
+  type      ConversationType
+  clubId    String?          @unique @map("club_id") @db.Char(36)
+  directKey String?          @unique @map("direct_key") @db.VarChar(73)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  club         BookClub?                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String    @map("conversation_id") @db.Char(36)
+  userId         String    @map("user_id") @db.Char(36)
+  lastReadAt     DateTime? @map("last_read_at")
+  joinedAt       DateTime  @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(uuid()) @db.Char(36)
+  conversationId String   @map("conversation_id") @db.Char(36)
+  senderId       String   @map("sender_id") @db.Char(36)
+  body           String   @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
 }

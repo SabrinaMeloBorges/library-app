@@ -28,6 +28,25 @@ export const pageNumber = (label: string, min = 0) =>
     .min(min, `${label} deve ser maior ou igual a ${min}`)
     .max(100000, `${label} deve ser no máximo 100000`);
 
+export const usernameSchema = z
+  .string({ invalid_type_error: 'Nome de usuário inválido' })
+  .trim()
+  .toLowerCase()
+  .regex(
+    /^[a-z0-9_.]{3,30}$/,
+    'Use de 3 a 30 caracteres: letras minúsculas, números, ponto ou sublinhado',
+  );
+
+export const optionalIsoDate = (label: string) =>
+  z
+    .string()
+    .datetime({ offset: true, message: `${label} inválida` })
+    .transform((value) => new Date(value))
+    .optional();
+
+export const pageLimit = (max: number, fallback: number) =>
+  z.coerce.number().int().min(1).max(max).default(fallback);
+
 export const dateOnlyString = (label: string) =>
   z
     .string({ required_error: `${label} é obrigatória` })

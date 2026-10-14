@@ -31,6 +31,13 @@ export interface AppColors {
   danger: string;
   dangerSoft: string;
   highlight: string;
+  accentSoft: string;
+  highlightSoft: string;
+  hero: string;
+  onHero: string;
+  bronze: string;
+  silver: string;
+  gold: string;
 }
 
 export const lightColors: AppColors = {
@@ -47,6 +54,13 @@ export const lightColors: AppColors = {
   danger: palette.danger,
   dangerSoft: palette.dangerSoft,
   highlight: palette.brown,
+  accentSoft: '#DCE6D8',
+  highlightSoft: '#EFE3D0',
+  hero: palette.forest,
+  onHero: palette.beige,
+  bronze: '#A06A3B',
+  silver: '#7E8C91',
+  gold: '#B68A22',
 };
 
 export const darkColors: AppColors = {
@@ -63,4 +77,29 @@ export const darkColors: AppColors = {
   danger: '#E39A8E',
   dangerSoft: '#3A2522',
   highlight: palette.sand,
+  accentSoft: '#223129',
+  highlightSoft: '#2E2720',
+  hero: '#1A2A22',
+  onHero: palette.parchment,
+  bronze: '#C9925F',
+  silver: '#A9B6BA',
+  gold: '#D9B24C',
 };
+
+export const AVATAR_COLORS = [
+  palette.forest,
+  palette.forestSecondary,
+  palette.brown,
+  palette.forestAccent,
+  '#7A5C45',
+  '#3E5A6B',
+];
+
+export const SPINE_COLORS = [
+  palette.forest,
+  palette.brown,
+  palette.forestAccent,
+  '#B08D57',
+  palette.forestSecondary,
+  '#8C5A44',
+];

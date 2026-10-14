@@ -15,6 +15,7 @@ export interface AuthContextValue {
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
+  updateUser: (user: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -120,6 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       register,
       logout,
       restoreSession,
+      updateUser: setUser,
     }),
     [user, token, isLoading, sessionError, login, register, logout, restoreSession],
   );

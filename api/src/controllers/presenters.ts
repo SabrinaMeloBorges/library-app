@@ -25,6 +25,8 @@ export const presentLibraryItem = (item: UserBookWithBook) => ({
     publisher: item.book.publisher,
     coverUrl: item.book.coverUrl,
     isbn: item.book.isbn,
+    description: item.book.description,
+    subjects: item.book.subjects,
     externalSource: item.book.externalSource,
     externalId: item.book.externalId,
   },
@@ -54,6 +56,7 @@ export const presentGoal = (goal: GoalWithProgress) => ({
   currentValue: goal.progress.currentValue,
   percentage: goal.progress.percentage,
   state: goal.progress.state,
+  completedAt: goal.completedAt,
   createdAt: goal.createdAt,
 });
 

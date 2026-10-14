@@ -7,6 +7,8 @@ const timeZone = 'America/Sao_Paulo';
 const goal = (overrides: Partial<ReadingGoal>): ReadingGoal => ({
   id: 'goal',
   userId: 'user',
+  clubId: null,
+  completedAt: null,
   title: 'Meta',
   type: 'PAGES_READ',
   period: 'MONTHLY',

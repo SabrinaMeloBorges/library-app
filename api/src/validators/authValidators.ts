@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { trimmedString } from './common';
+import { trimmedString, usernameSchema } from './common';
 
 const emailSchema = z
   .string({ required_error: 'E-mail é obrigatório' })
@@ -10,6 +10,7 @@ const emailSchema = z
 
 export const registerSchema = z.object({
   name: trimmedString('Nome', 80),
+  username: usernameSchema.optional(),
   email: emailSchema,
   password: z
     .string({ required_error: 'Senha é obrigatória' })
