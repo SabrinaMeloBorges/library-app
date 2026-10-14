@@ -11,11 +11,31 @@ import type {
   UserBookRepository,
   UserRepository,
 } from '../contracts';
+import {
+  createAchievementRepository,
+  createActivityRepository,
+  createClubRepository,
+  createConversationRepository,
+  createFollowRepository,
+  userSummarySelect,
+} from './socialRepositories';
 
 const createUserRepository = (prisma: PrismaClient): UserRepository => ({
   findById: (id) => prisma.user.findUnique({ where: { id } }),
   findByEmail: (email) => prisma.user.findUnique({ where: { email } }),
+  findByUsername: (username) => prisma.user.findUnique({ where: { username } }),
   create: (data) => prisma.user.create({ data }),
+  update: (id, data) => prisma.user.update({ where: { id }, data }),
+  search: (query, excludeUserId, limit) =>
+    prisma.user.findMany({
+      where: {
+        id: { not: excludeUserId },
+        OR: [{ name: { contains: query } }, { username: { contains: query } }],
+      },
+      select: userSummarySelect,
+      orderBy: { name: 'asc' },
+      take: limit,
+    }),
 });
 
 const createAuthSessionRepository = (prisma: PrismaClient): AuthSessionRepository => ({
@@ -144,21 +164,43 @@ const createReadingSessionRepository = (prisma: PrismaClient): ReadingSessionRep
 
 const createReadingGoalRepository = (prisma: PrismaClient): ReadingGoalRepository => {
   const assertOwned = async (userId: string, id: string): Promise<void> => {
-    const count = await prisma.readingGoal.count({ where: { id, userId } });
+    const count = await prisma.readingGoal.count({ where: { id, userId, clubId: null } });
     if (count === 0) throw new Error('Meta não encontrada para o usuário');
   };
 
   return {
     list: (userId) =>
-      prisma.readingGoal.findMany({ where: { userId }, orderBy: [{ endDate: 'asc' }] }),
-    findById: (userId, id) => prisma.readingGoal.findFirst({ where: { id, userId } }),
-    create: (userId, data) => prisma.readingGoal.create({ data: { ...data, userId } }),
+      prisma.readingGoal.findMany({
+        where: { userId, clubId: null },
+        orderBy: [{ endDate: 'asc' }],
+      }),
+    findById: (userId, id) => prisma.readingGoal.findFirst({ where: { id, userId, clubId: null } }),
+    create: (userId, data, clubId) =>
+      prisma.readingGoal.create({ data: { ...data, userId, clubId: clubId ?? null } }),
     update: async (userId, id, data) => {
       await assertOwned(userId, id);
       return prisma.readingGoal.update({ where: { id }, data });
     },
     delete: async (userId, id) => {
-      await prisma.readingGoal.deleteMany({ where: { id, userId } });
+      await prisma.readingGoal.deleteMany({ where: { id, userId, clubId: null } });
+    },
+    listByClubIds: (clubIds) =>
+      clubIds.length === 0
+        ? Promise.resolve([])
+        : prisma.readingGoal.findMany({
+            where: { clubId: { in: clubIds } },
+            orderBy: [{ endDate: 'asc' }],
+          }),
+    findClubGoal: (clubId, id) => prisma.readingGoal.findFirst({ where: { id, clubId } }),
+    updateById: (id, data) => prisma.readingGoal.update({ where: { id }, data }),
+    deleteById: async (id) => {
+      await prisma.readingGoal.deleteMany({ where: { id } });
+    },
+    markCompleted: async (id, completedAt) => {
+      await prisma.readingGoal.updateMany({
+        where: { id, completedAt: null },
+        data: { completedAt },
+      });
     },
   };
 };
@@ -170,4 +212,9 @@ export const createPrismaRepositories = (prisma: PrismaClient): Repositories => 
   userBooks: createUserBookRepository(prisma),
   readingSessions: createReadingSessionRepository(prisma),
   readingGoals: createReadingGoalRepository(prisma),
+  follows: createFollowRepository(prisma),
+  clubs: createClubRepository(prisma),
+  activities: createActivityRepository(prisma),
+  achievements: createAchievementRepository(prisma),
+  conversations: createConversationRepository(prisma),
 });

@@ -3,6 +3,7 @@ import { requireAuth } from '../middlewares/authenticate';
 import type { AuthService } from '../services/authService';
 import { loginSchema, registerSchema } from '../validators/authValidators';
 import { parseOrThrow } from '../validators/parse';
+import { presentMe } from './socialPresenters';
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -19,7 +20,7 @@ export class AuthController {
 
   me = async (req: Request, res: Response): Promise<void> => {
     const { userId } = requireAuth(req);
-    res.json({ user: await this.authService.getProfile(userId) });
+    res.json({ user: presentMe(await this.authService.getProfile(userId)) });
   };
 
   logout = async (req: Request, res: Response): Promise<void> => {

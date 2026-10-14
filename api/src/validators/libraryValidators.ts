@@ -60,6 +60,8 @@ const userBookFields = {
 export const createLibraryItemSchema = z
   .object({
     ...bookFields,
+    description: optionalTrimmedString('Descrição', 5000),
+    subjects: optionalTrimmedString('Assuntos', 255),
     externalSource: z.enum(['openlibrary']).nullable().optional(),
     externalId: z
       .string()

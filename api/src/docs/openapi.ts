@@ -25,6 +25,235 @@ const readingStatus = {
   enum: ['WANT_TO_READ', 'READING', 'FINISHED', 'PAUSED', 'ABANDONED'],
 };
 
+const objectSchema = (description: string) => ({ type: 'object', description });
+
+const operation = (
+  tag: string,
+  summary: string,
+  responses: Record<number, object>,
+  extra: Record<string, unknown> = {},
+) => ({
+  tags: [tag],
+  summary,
+  security: secured,
+  responses: { ...responses, ...commonErrors },
+  ...extra,
+});
+
+const withBody = (description: string) => ({
+  requestBody: { required: true, content: jsonContent(objectSchema(description)) },
+});
+
+const ok = (description: string) => ({ 200: { description } });
+const created = (description: string) => ({ 201: { description } });
+const noContent = { 204: { description: 'Sem conteúdo' } };
+const notFound = { 404: errorResponse('Não encontrado') };
+const forbiddenResponse = { 403: errorResponse('Sem permissão') };
+const goalIdParameter = {
+  name: 'goalId',
+  in: 'path',
+  required: true,
+  schema: { type: 'string', format: 'uuid' },
+};
+const userIdParameter = {
+  name: 'userId',
+  in: 'path',
+  required: true,
+  schema: { type: 'string', format: 'uuid' },
+};
+const commentIdParameter = {
+  name: 'commentId',
+  in: 'path',
+  required: true,
+  schema: { type: 'string', format: 'uuid' },
+};
+const pagingParameters = [
+  { name: 'before', in: 'query', schema: { type: 'string', format: 'date-time' } },
+  { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50 } },
+];
+
+const socialPaths = {
+  '/users/search': {
+    get: operation('Pessoas', 'Busca pessoas por nome ou usuário', ok('Pessoas com relação'), {
+      parameters: [
+        { name: 'q', in: 'query', required: true, schema: { type: 'string', minLength: 2 } },
+      ],
+    }),
+  },
+  '/users/me': {
+    patch: operation('Pessoas', 'Atualiza nome, usuário, bio e compartilhamento', ok('Perfil'), {
+      ...withBody('{ name?, username?, bio?, shareActivity? }'),
+      responses: {
+        200: { description: 'Perfil' },
+        409: errorResponse('Usuário em uso'),
+        ...commonErrors,
+      },
+    }),
+  },
+  '/users/me/friends': { get: operation('Pessoas', 'Amigos (seguem um ao outro)', ok('Amigos')) },
+  '/users/{id}': {
+    parameters: [idParameter],
+    get: operation('Pessoas', 'Perfil público com estatísticas, estantes e conquistas', {
+      ...ok('Perfil'),
+      ...notFound,
+    }),
+  },
+  '/users/{id}/follow': {
+    parameters: [idParameter],
+    post: operation('Pessoas', 'Segue a pessoa', ok('Relação atualizada')),
+    delete: operation('Pessoas', 'Deixa de seguir', ok('Relação atualizada')),
+  },
+  '/users/{id}/followers': {
+    parameters: [idParameter],
+    get: operation('Pessoas', 'Seguidores', ok('Lista')),
+  },
+  '/users/{id}/following': {
+    parameters: [idParameter],
+    get: operation('Pessoas', 'Quem a pessoa segue', ok('Lista')),
+  },
+  '/users/{id}/activities': {
+    parameters: [idParameter, ...pagingParameters],
+    get: operation('Feed', 'Atividades publicadas pela pessoa', ok('Atividades')),
+  },
+  '/users/{id}/achievements': {
+    parameters: [idParameter],
+    get: operation('Conquistas', 'Conquistas desbloqueadas pela pessoa', ok('Conquistas')),
+  },
+  '/feed': {
+    get: operation('Feed', 'Atividades suas e de quem você segue', ok('Atividades'), {
+      parameters: pagingParameters,
+    }),
+  },
+  '/activities/{id}/likes': {
+    parameters: [idParameter],
+    post: operation('Feed', 'Curte a atividade', { ...ok('Atividade'), ...notFound }),
+    delete: operation('Feed', 'Remove a curtida', { ...ok('Atividade'), ...notFound }),
+  },
+  '/activities/{id}/comments': {
+    parameters: [idParameter],
+    get: operation('Feed', 'Comentários', ok('Comentários')),
+    post: operation('Feed', 'Comenta a atividade', created('Comentário'), withBody('{ body }')),
+  },
+  '/activities/{id}/comments/{commentId}': {
+    parameters: [idParameter, commentIdParameter],
+    delete: operation('Feed', 'Remove comentário (autor do comentário ou da atividade)', {
+      ...noContent,
+      ...forbiddenResponse,
+    }),
+  },
+  '/achievements': {
+    get: operation('Conquistas', 'Catálogo com status e progresso', ok('Conquistas')),
+  },
+  '/achievements/pending': {
+    get: operation('Conquistas', 'Conquistas desbloqueadas ainda não vistas', ok('Conquistas')),
+  },
+  '/achievements/seen': {
+    post: operation(
+      'Conquistas',
+      'Marca conquistas como vistas',
+      noContent,
+      withBody('{ codes: string[] }'),
+    ),
+  },
+  '/clubs': {
+    get: operation('Clubes', 'Clubes dos quais você participa', ok('Clubes')),
+    post: operation(
+      'Clubes',
+      'Cria um clube',
+      created('Clube'),
+      withBody('{ name, description?, currentUserBookId? }'),
+    ),
+  },
+  '/clubs/join': {
+    post: operation(
+      'Clubes',
+      'Entra em um clube pelo código',
+      { ...ok('Clube'), ...notFound },
+      withBody('{ inviteCode }'),
+    ),
+  },
+  '/clubs/{id}': {
+    parameters: [idParameter],
+    get: operation('Clubes', 'Detalhes, membros e metas coletivas', {
+      ...ok('Clube'),
+      ...notFound,
+    }),
+    patch: operation(
+      'Clubes',
+      'Atualiza o clube (dono)',
+      { ...ok('Clube'), ...forbiddenResponse },
+      withBody('{ name?, description?, currentUserBookId? }'),
+    ),
+    delete: operation('Clubes', 'Exclui o clube (dono)', { ...noContent, ...forbiddenResponse }),
+  },
+  '/clubs/{id}/members': {
+    parameters: [idParameter],
+    post: operation(
+      'Clubes',
+      'Adiciona um amigo ao clube (dono)',
+      { ...ok('Clube'), ...forbiddenResponse },
+      withBody('{ userId }'),
+    ),
+  },
+  '/clubs/{id}/members/{userId}': {
+    parameters: [idParameter, userIdParameter],
+    delete: operation('Clubes', 'Remove membro (dono) ou sai do clube', {
+      ...noContent,
+      ...forbiddenResponse,
+    }),
+  },
+  '/clubs/{id}/goals': {
+    parameters: [idParameter],
+    post: operation('Clubes', 'Cria meta coletiva (dono)', created('Clube'), {
+      requestBody: { required: true, content: jsonContent(ref('GoalInput')) },
+    }),
+  },
+  '/clubs/{id}/goals/{goalId}': {
+    parameters: [idParameter, goalIdParameter],
+    patch: operation('Clubes', 'Atualiza meta coletiva (dono)', ok('Clube'), {
+      requestBody: { required: true, content: jsonContent(ref('GoalInput')) },
+    }),
+    delete: operation('Clubes', 'Remove meta coletiva (dono)', noContent),
+  },
+  '/conversations': {
+    get: operation('Conversas', 'Conversas com última mensagem e não lidas', ok('Conversas')),
+  },
+  '/conversations/direct': {
+    post: operation(
+      'Conversas',
+      'Abre conversa direta com um amigo',
+      { ...ok('Conversa'), ...forbiddenResponse },
+      withBody('{ userId }'),
+    ),
+  },
+  '/conversations/{id}': {
+    parameters: [idParameter],
+    get: operation('Conversas', 'Detalhes da conversa', { ...ok('Conversa'), ...notFound }),
+  },
+  '/conversations/{id}/messages': {
+    parameters: [
+      idParameter,
+      { name: 'after', in: 'query', schema: { type: 'string', format: 'date-time' } },
+      { name: 'before', in: 'query', schema: { type: 'string', format: 'date-time' } },
+      { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100 } },
+    ],
+    get: operation('Conversas', 'Mensagens (use after para buscar novas)', {
+      ...ok('Mensagens'),
+      ...notFound,
+    }),
+    post: operation(
+      'Conversas',
+      'Envia mensagem',
+      { ...created('Mensagem'), ...notFound },
+      withBody('{ body }'),
+    ),
+  },
+  '/conversations/{id}/read': {
+    parameters: [idParameter],
+    post: operation('Conversas', 'Marca a conversa como lida', noContent),
+  },
+};
+
 export const openApiDocument = {
   openapi: '3.0.3',
   info: {
@@ -478,5 +707,6 @@ export const openApiDocument = {
         responses: { 200: dataResponse('Visão geral', ref('StatisticsOverview')), ...commonErrors },
       },
     },
+    ...socialPaths,
   },
 };

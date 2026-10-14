@@ -7,6 +7,7 @@ import type {
   LibraryQuery,
   UpdateLibraryItemInput,
 } from '../validators/libraryValidators';
+import type { EngagementHooks } from './engagementService';
 
 const NOT_FOUND_MESSAGE = 'Livro não encontrado na sua biblioteca';
 
@@ -50,6 +51,7 @@ export class LibraryService {
   constructor(
     private readonly books: BookRepository,
     private readonly userBooks: UserBookRepository,
+    private readonly engagement: EngagementHooks,
   ) {}
 
   async list(userId: string, query: LibraryQuery): Promise<UserBookWithBook[]> {
@@ -85,12 +87,14 @@ export class LibraryService {
       new Date(),
     );
 
-    return this.userBooks.create(userId, book.id, {
+    const created = await this.userBooks.create(userId, book.id, {
       ...progress,
       rating: input.rating ?? null,
       isFavorite: input.isFavorite,
       review: input.review ?? null,
     });
+    await this.engagement.bookChanged(userId, null, created);
+    return created;
   }
 
   async update(
@@ -121,13 +125,15 @@ export class LibraryService {
       new Date(),
     );
 
-    return this.userBooks.update(userId, id, {
+    const updated = await this.userBooks.update(userId, id, {
       ...progress,
       ...(bookId !== current.bookId ? { bookId } : {}),
       ...(input.isFavorite !== undefined ? { isFavorite: input.isFavorite } : {}),
       ...(input.rating !== undefined ? { rating: input.rating } : {}),
       ...(input.review !== undefined ? { review: input.review } : {}),
     });
+    await this.engagement.bookChanged(userId, current, updated);
+    return updated;
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -142,6 +148,8 @@ export class LibraryService {
       publisher: input.publisher ?? null,
       coverUrl: input.coverUrl ?? null,
       isbn: input.isbn ?? null,
+      description: input.description ?? null,
+      subjects: input.subjects ?? null,
       pageCount: input.totalPages,
       externalSource: input.externalSource ?? null,
       externalId: input.externalId ?? null,
@@ -153,7 +161,16 @@ export class LibraryService {
         bookData.externalSource,
         bookData.externalId,
       );
-      return existing ?? this.books.create(bookData);
+      if (!existing) return this.books.create(bookData);
+      const missingDetails = {
+        ...(!existing.description && bookData.description
+          ? { description: bookData.description }
+          : {}),
+        ...(!existing.subjects && bookData.subjects ? { subjects: bookData.subjects } : {}),
+      };
+      return Object.keys(missingDetails).length > 0
+        ? this.books.update(existing.id, missingDetails)
+        : existing;
     }
     return this.books.create({ ...bookData, createdByUserId: userId });
   }

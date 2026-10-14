@@ -29,16 +29,28 @@ const resolveState = (range: DayRange, today: string, completed: boolean): GoalS
   return 'ACTIVE';
 };
 
+export const goalMetricValue = (
+  goal: ReadingGoal,
+  snapshot: ReadingSnapshot,
+  timeZone: string,
+): number => summarizeRange(snapshot, goalRange(goal), timeZone)[VALUE_BY_TYPE[goal.type]];
+
+export const progressFromValue = (
+  goal: ReadingGoal,
+  currentValue: number,
+  now: Date,
+  timeZone: string,
+): GoalProgress => {
+  const range = goalRange(goal);
+  const percentage = Math.min(100, Math.round((currentValue / goal.targetValue) * 100));
+  const state = resolveState(range, toDayKey(now, timeZone), currentValue >= goal.targetValue);
+  return { currentValue, percentage, state };
+};
+
 export const calculateGoalProgress = (
   goal: ReadingGoal,
   snapshot: ReadingSnapshot,
   now: Date,
   timeZone: string,
-): GoalProgress => {
-  const range = goalRange(goal);
-  const summary = summarizeRange(snapshot, range, timeZone);
-  const currentValue = summary[VALUE_BY_TYPE[goal.type]];
-  const percentage = Math.min(100, Math.round((currentValue / goal.targetValue) * 100));
-  const state = resolveState(range, toDayKey(now, timeZone), currentValue >= goal.targetValue);
-  return { currentValue, percentage, state };
-};
+): GoalProgress =>
+  progressFromValue(goal, goalMetricValue(goal, snapshot, timeZone), now, timeZone);

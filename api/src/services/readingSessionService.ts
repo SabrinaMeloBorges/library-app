@@ -7,6 +7,7 @@ import type {
   ReadingSessionQuery,
   UpdateReadingSessionInput,
 } from '../validators/readingSessionValidators';
+import type { EngagementHooks } from './engagementService';
 
 const SESSION_NOT_FOUND = 'Sessão de leitura não encontrada';
 const BOOK_NOT_FOUND = 'Livro não encontrado na sua biblioteca';
@@ -31,6 +32,7 @@ export class ReadingSessionService {
   constructor(
     private readonly sessions: ReadingSessionRepository,
     private readonly userBooks: UserBookRepository,
+    private readonly engagement: EngagementHooks,
   ) {}
 
   list(userId: string, query: ReadingSessionQuery): Promise<ReadingSessionWithBook[]> {
@@ -53,6 +55,7 @@ export class ReadingSessionService {
     if (input.endPage > userBook.currentPage) {
       await this.saveProgress(userId, userBook, input.endPage);
     }
+    await this.notifyChange(userId, userBook);
     return session;
   }
 
@@ -70,6 +73,7 @@ export class ReadingSessionService {
 
     const updated = await this.sessions.update(userId, id, input);
     await this.recalculateProgress(userId, userBook, current.endPage);
+    await this.notifyChange(userId, userBook);
     return updated;
   }
 
@@ -78,6 +82,12 @@ export class ReadingSessionService {
     const userBook = await this.getUserBook(userId, current.userBookId);
     await this.sessions.delete(userId, id);
     await this.recalculateProgress(userId, userBook, current.endPage);
+    await this.notifyChange(userId, userBook);
+  }
+
+  private async notifyChange(userId: string, before: UserBookWithBook): Promise<void> {
+    const after = await this.getUserBook(userId, before.id);
+    await this.engagement.bookChanged(userId, before, after);
   }
 
   private async recalculateProgress(

@@ -6,6 +6,8 @@ import type { PublicUser, User } from '../domain/entities';
 import { AppError } from '../errors/AppError';
 import type { AuthSessionRepository, UserRepository } from '../repositories/contracts';
 import type { LoginInput, RegisterInput } from '../validators/authValidators';
+import type { EngagementHooks } from './engagementService';
+import { ensureUsernameAvailable, generateUsername } from './usernames';
 
 const HOUR_MS = 60 * 60 * 1000;
 const INVALID_CREDENTIALS = 'E-mail ou senha incorretos';
@@ -40,6 +42,7 @@ export class AuthService {
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: AuthSessionRepository,
+    private readonly engagement: EngagementHooks,
     private readonly config: Pick<AppConfig, 'JWT_SECRET' | 'JWT_EXPIRES_IN_HOURS' | 'BCRYPT_COST'>,
   ) {
     this.dummyHash = bcrypt.hashSync('library-timing-protection', config.BCRYPT_COST);
@@ -48,9 +51,17 @@ export class AuthService {
   async register(input: RegisterInput): Promise<AuthResult> {
     const existing = await this.users.findByEmail(input.email);
     if (existing) throw AppError.conflict('Já existe uma conta com este e-mail');
+    if (input.username) await ensureUsernameAvailable(this.users, input.username);
 
+    const username = input.username ?? (await generateUsername(this.users, input.name));
     const passwordHash = await bcrypt.hash(input.password, this.config.BCRYPT_COST);
-    const user = await this.users.create({ name: input.name, email: input.email, passwordHash });
+    const user = await this.users.create({
+      name: input.name,
+      username,
+      email: input.email,
+      passwordHash,
+    });
+    await this.engagement.usersChanged([user.id]);
     return this.issueSession(user);
   }
 
@@ -61,6 +72,7 @@ export class AuthService {
       user?.passwordHash ?? this.dummyHash,
     );
     if (!user || !passwordMatches) throw AppError.unauthorized(INVALID_CREDENTIALS);
+    await this.engagement.usersChanged([user.id]);
     return this.issueSession(user);
   }
 
