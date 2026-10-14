@@ -5,6 +5,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner';
 import { FormTextField } from '../../components/FormTextField';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { useAuth } from '../../hooks/useAuth';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import type { RootStackScreenProps } from '../../navigation/types';
 import { toApiError } from '../../services/apiError';
 import { spacing } from '../../theme/spacing';
@@ -27,6 +28,7 @@ const INITIAL_VALUES: RegisterFormValues = {
 
 export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>) => {
   const { register } = useAuth();
+  const { showMessage } = useSnackbar();
   const [values, setValues] = useState<RegisterFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FormErrors<Field>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>)
         email: values.email.trim().toLowerCase(),
         password: values.password,
       });
+      showMessage('Conta criada. Boas-vindas ao Library!');
     } catch (error) {
       const apiError = toApiError(error);
       setErrors((current) => ({ ...current, ...apiError.fieldErrors }));

@@ -9,6 +9,7 @@ import { ScreenContainer } from '../components/ScreenContainer';
 import { ErrorState, LoadingState } from '../components/StateViews';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useAsyncResource } from '../hooks/useAsyncResource';
+import { useSnackbar } from '../hooks/useSnackbar';
 import type { RootStackScreenProps } from '../navigation/types';
 import { toApiError } from '../services/apiError';
 import type { CatalogBook } from '../services/catalogService';
@@ -33,6 +34,7 @@ const EMPTY_VALUES: BookFormValues = {
   currentPage: '0',
   status: 'WANT_TO_READ',
   isFavorite: false,
+  review: '',
 };
 
 const valuesFromCatalog = (book: CatalogBook): BookFormValues => ({
@@ -51,6 +53,7 @@ const valuesFromItem = (item: LibraryItem): BookFormValues => ({
   currentPage: String(item.currentPage),
   status: item.status,
   isFavorite: item.isFavorite,
+  review: item.review ?? '',
 });
 
 const toPayload = (
@@ -63,6 +66,7 @@ const toPayload = (
   currentPage: values.currentPage.trim() === '' ? 0 : Number(values.currentPage.trim()),
   status: values.status,
   isFavorite: values.isFavorite,
+  review: values.review.trim() || null,
 });
 
 type ScreenProps = RootStackScreenProps<'BookForm'>;
@@ -112,6 +116,7 @@ interface BookFormProps {
 
 const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormProps) => {
   const theme = useAppTheme();
+  const { showMessage } = useSnackbar();
   const [values, setValues] = useState<BookFormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors<Field>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -134,6 +139,7 @@ const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormPr
       const payload = toPayload(values);
       if (bookId) {
         await libraryService.update(bookId, payload);
+        showMessage('Livro atualizado.');
         navigation.goBack();
         return;
       }
@@ -144,6 +150,7 @@ const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormPr
         externalSource: catalogBook ? catalogBook.externalSource : null,
         externalId: catalogBook ? catalogBook.externalId : null,
       });
+      showMessage('Livro adicionado à biblioteca.');
       navigation.popTo('Main', { screen: 'Library' });
       navigation.navigate('BookDetails', { bookId: created.id });
     } catch (error) {
@@ -247,6 +254,20 @@ const BookForm = ({ initialValues, bookId, catalogBook, navigation }: BookFormPr
         />
       </View>
 
+      <View style={styles.reviewField}>
+        <FormTextField
+          label="Resenha"
+          value={values.review}
+          onChangeText={(text) => setField('review', text)}
+          error={errors.review}
+          hint="Opcional. Suas impressões, trechos marcantes ou anotações sobre o livro."
+          multiline
+          numberOfLines={5}
+          maxLength={5000}
+          disabled={isSubmitting}
+        />
+      </View>
+
       <Button
         mode="contained"
         icon="content-save-outline"
@@ -285,6 +306,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  submit: { marginTop: spacing.xl },
+  reviewField: { marginTop: spacing.lg },
+  submit: { marginTop: spacing.md },
   submitContent: { paddingVertical: spacing.xs },
 });

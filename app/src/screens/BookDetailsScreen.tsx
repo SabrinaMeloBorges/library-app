@@ -13,8 +13,9 @@ import { SessionListItem } from '../components/SessionListItem';
 import { ErrorState, LoadingState } from '../components/StateViews';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLibraryItem } from '../hooks/useLibraryItem';
+import { useSnackbar } from '../hooks/useSnackbar';
 import type { RootStackScreenProps } from '../navigation/types';
-import type { ReadingSession } from '../types/api';
+import type { LibraryItemUpdate, ReadingSession } from '../types/api';
 import { formatDate } from '../utils/dates';
 import { STATUS_OPTIONS } from '../utils/labels';
 import { spacing } from '../theme/spacing';
@@ -24,6 +25,7 @@ type PendingDeletion = { kind: 'book' } | { kind: 'session'; session: ReadingSes
 export const BookDetailsScreen = ({ navigation, route }: RootStackScreenProps<'BookDetails'>) => {
   const { bookId } = route.params;
   const theme = useAppTheme();
+  const { showMessage } = useSnackbar();
   const details = useLibraryItem(bookId);
   const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion | null>(null);
   const item = details.data?.item;
@@ -63,16 +65,24 @@ export const BookDetailsScreen = ({ navigation, route }: RootStackScreenProps<'B
 
   const { sessions } = details.data;
 
+  const updateWithFeedback = async (changes: LibraryItemUpdate, message: string) => {
+    if (await details.update(changes)) showMessage(message);
+  };
+
   const confirmDeletion = async () => {
     if (!pendingDeletion) return;
     if (pendingDeletion.kind === 'book') {
       const removed = await details.removeBook();
       setPendingDeletion(null);
-      if (removed) navigation.goBack();
+      if (removed) {
+        showMessage('Livro removido da biblioteca.');
+        navigation.goBack();
+      }
       return;
     }
-    await details.removeSession(pendingDeletion.session.id);
+    const removed = await details.removeSession(pendingDeletion.session.id);
     setPendingDeletion(null);
+    if (removed) showMessage('Sessão excluída. Progresso recalculado.');
   };
 
   return (
@@ -118,7 +128,7 @@ export const BookDetailsScreen = ({ navigation, route }: RootStackScreenProps<'B
         options={STATUS_OPTIONS}
         selected={item.status}
         onSelect={(status) => {
-          if (status !== item.status) void details.update({ status });
+          if (status !== item.status) void updateWithFeedback({ status }, 'Status atualizado.');
         }}
         accessibilityLabel="Status de leitura"
       />
@@ -128,7 +138,12 @@ export const BookDetailsScreen = ({ navigation, route }: RootStackScreenProps<'B
         <Switch
           value={item.isFavorite}
           disabled={details.isMutating}
-          onValueChange={(isFavorite) => void details.update({ isFavorite })}
+          onValueChange={(isFavorite) =>
+            void updateWithFeedback(
+              { isFavorite },
+              isFavorite ? 'Adicionado aos favoritos.' : 'Removido dos favoritos.',
+            )
+          }
           accessibilityLabel="Marcar como favorito"
         />
       </View>
@@ -137,8 +152,30 @@ export const BookDetailsScreen = ({ navigation, route }: RootStackScreenProps<'B
       <RatingInput
         value={item.rating}
         disabled={details.isMutating}
-        onChange={(rating) => void details.update({ rating })}
+        onChange={(rating) =>
+          void updateWithFeedback({ rating }, rating ? 'Avaliação salva.' : 'Avaliação removida.')
+        }
       />
+
+      <SectionHeader
+        title="Resenha"
+        action={
+          <Button
+            compact
+            icon="pencil-outline"
+            onPress={() => navigation.navigate('BookForm', { bookId })}
+            disabled={details.isMutating}
+          >
+            {item.review ? 'Editar' : 'Escrever'}
+          </Button>
+        }
+      />
+      <Text
+        variant="bodyMedium"
+        style={item.review ? styles.review : { color: theme.appColors.textMuted }}
+      >
+        {item.review ?? 'Você ainda não escreveu uma resenha para este livro.'}
+      </Text>
 
       <View style={styles.dates}>
         {item.startedAt ? (
@@ -215,5 +252,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   dates: { marginTop: spacing.sm, gap: 2 },
+  review: { lineHeight: 22 },
   deleteButton: { marginTop: spacing.xxl },
 });

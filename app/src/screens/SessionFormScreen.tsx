@@ -7,6 +7,7 @@ import { ScreenContainer } from '../components/ScreenContainer';
 import { ErrorState, LoadingState } from '../components/StateViews';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useAsyncResource } from '../hooks/useAsyncResource';
+import { useSnackbar } from '../hooks/useSnackbar';
 import type { RootStackScreenProps } from '../navigation/types';
 import { toApiError } from '../services/apiError';
 import { libraryService } from '../services/libraryService';
@@ -108,6 +109,7 @@ interface SessionFormProps {
 
 const SessionForm = ({ item, initialValues: initial, sessionId, navigation }: SessionFormProps) => {
   const theme = useAppTheme();
+  const { showMessage } = useSnackbar();
   const userBookId = item.id;
   const [values, setValues] = useState<SessionFormValues>(initial);
   const [errors, setErrors] = useState<FormErrors<Field>>({});
@@ -144,6 +146,7 @@ const SessionForm = ({ item, initialValues: initial, sessionId, navigation }: Se
     try {
       if (sessionId) await readingSessionService.update(sessionId, payload);
       else await readingSessionService.create({ ...payload, userBookId });
+      showMessage(sessionId ? 'Sessão atualizada.' : 'Sessão registrada. Progresso atualizado.');
       navigation.goBack();
     } catch (error) {
       const apiError = toApiError(error);

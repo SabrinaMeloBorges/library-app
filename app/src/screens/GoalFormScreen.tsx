@@ -7,6 +7,7 @@ import { OptionChips } from '../components/OptionChips';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ErrorState, LoadingState } from '../components/StateViews';
 import { useAsyncResource } from '../hooks/useAsyncResource';
+import { useSnackbar } from '../hooks/useSnackbar';
 import type { RootStackScreenProps } from '../navigation/types';
 import { toApiError } from '../services/apiError';
 import { goalService } from '../services/goalService';
@@ -82,6 +83,7 @@ interface GoalFormProps {
 }
 
 const GoalForm = ({ initialValues, goalId, navigation }: GoalFormProps) => {
+  const { showMessage } = useSnackbar();
   const [values, setValues] = useState<GoalFormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors<Field>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -113,6 +115,7 @@ const GoalForm = ({ initialValues, goalId, navigation }: GoalFormProps) => {
       const payload = toGoalPayload(values);
       if (goalId) await goalService.update(goalId, payload);
       else await goalService.create(payload);
+      showMessage(goalId ? 'Meta atualizada.' : 'Meta criada.');
       navigation.goBack();
     } catch (error) {
       const apiError = toApiError(error);

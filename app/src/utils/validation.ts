@@ -64,7 +64,10 @@ export interface BookFormValues {
   currentPage: string;
   status: ReadingStatus;
   isFavorite: boolean;
+  review: string;
 }
+
+const MAX_REVIEW_LENGTH = 5000;
 
 export const validateBookForm = (values: BookFormValues): FormErrors<keyof BookFormValues> => {
   const totalPages = parseInteger(values.totalPages);
@@ -87,6 +90,9 @@ export const validateBookForm = (values: BookFormValues): FormErrors<keyof BookF
     errors.currentPage = 'Informe um número inteiro igual ou maior que zero';
   else if (totalPages !== null && currentPage > totalPages)
     errors.currentPage = 'A página atual não pode passar do total de páginas';
+
+  if (values.review.trim().length > MAX_REVIEW_LENGTH)
+    errors.review = `Use no máximo ${MAX_REVIEW_LENGTH} caracteres`;
 
   return errors;
 };
