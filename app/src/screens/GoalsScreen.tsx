@@ -8,6 +8,7 @@ import { GoalCard } from '../components/GoalCard';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useReadingGoals } from '../hooks/useReadingGoals';
+import { useSnackbar } from '../hooks/useSnackbar';
 import type { MainTabScreenProps } from '../navigation/types';
 import type { ReadingGoal } from '../types/api';
 import { spacing } from '../theme/spacing';
@@ -18,6 +19,7 @@ const keyExtractor = (goal: ReadingGoal): string => goal.id;
 
 export const GoalsScreen = ({ navigation }: MainTabScreenProps<'Goals'>) => {
   const theme = useAppTheme();
+  const { showMessage } = useSnackbar();
   const {
     goals,
     isLoading,
@@ -100,7 +102,7 @@ export const GoalsScreen = ({ navigation }: MainTabScreenProps<'Goals'>) => {
         isProcessing={deletingId !== null}
         onDismiss={() => setGoalToDelete(null)}
         onConfirm={async () => {
-          if (goalToDelete) await removeGoal(goalToDelete.id);
+          if (goalToDelete && (await removeGoal(goalToDelete.id))) showMessage('Meta excluída.');
           setGoalToDelete(null);
         }}
       />

@@ -50,7 +50,8 @@ Quem lê com frequência costuma espalhar as informações das leituras entre an
 | Área | O que faz |
 | --- | --- |
 | Autenticação | Cadastro, login, logout com revogação da sessão no servidor, restauração automática da sessão. |
-| Biblioteca | CRUD de livros do usuário, pesquisa por título/autor, filtro por status, ordenação, alternância lista/grade, favorito, avaliação de 1 a 5. |
+| Biblioteca | CRUD de livros do usuário, pesquisa por título/autor, filtro por status, ordenação, alternância lista/grade, favorito, avaliação de 1 a 5 e resenha. |
+| Feedback | Mensagens de sucesso ao salvar, atualizar ou excluir livros, sessões e metas; erros do servidor exibidos junto aos campos. |
 | Catálogo externo | Busca no Open Library com debounce, carregamento, erro, lista vazia, nova tentativa e cadastro manual alternativo. |
 | Sessões de leitura | Registro, edição e exclusão com recálculo do progresso; histórico por livro. |
 | Metas | Livros concluídos, páginas lidas, minutos ou dias de leitura; períodos diário, semanal, mensal, anual ou personalizado; estado e percentual calculados no backend. |
@@ -79,7 +80,7 @@ library-app/
 │   └── src/
 │       ├── __tests__/           Testes do app (Jest)
 │       ├── components/          Componentes reutilizáveis (BookListItem, GoalCard, FormTextField...)
-│       ├── context/             AuthContext e ThemeContext
+│       ├── context/             AuthContext, ThemeContext e SnackbarContext
 │       ├── hooks/               useAuth, useBookSearch, useLibrary, useReadingGoals, useReminderSettings...
 │       ├── navigation/          RootNavigator (Stack), MainTabs (Bottom Tabs) e tipos de rotas
 │       ├── screens/             Telas (auth, início, biblioteca, detalhes, formulários, metas...)
@@ -284,7 +285,7 @@ npm run lint
 npx expo-doctor
 ```
 
-Cobrem: validação dos formulários, parsing e erros do catálogo externo, `useBookSearch` (ocioso, carregamento, sucesso, vazio, erro e nova tentativa), `AuthContext` (login, token no header `Authorization`, persistência no SecureStore, restauração e logout), `ThemeContext` (persistência no AsyncStorage), agendamento/cancelamento/reconciliação de lembretes (com `expo-notifications` simulado) e a tela de detalhes recebendo `bookId` (válido, inválido e inexistente).
+Cobrem: validação dos formulários, parsing e erros do catálogo externo, `useBookSearch` (ocioso, carregamento, sucesso, vazio, erro e nova tentativa), `AuthContext` (login, token no header `Authorization`, persistência no SecureStore, restauração e logout), `ThemeContext` (persistência no AsyncStorage), agendamento/cancelamento/reconciliação de lembretes (com `expo-notifications` simulado), a biblioteca em FlatList navegando para os detalhes com `bookId` (com estados vazio e de erro com nova tentativa) e a tela de detalhes recebendo `bookId` (válido, inválido e inexistente, salvando alterações com feedback de sucesso).
 
 ### Resultado da última execução
 
@@ -294,7 +295,7 @@ Cobrem: validação dos formulários, parsing e erros do catálogo externo, `use
 | API — Vitest contra MySQL 8.4 (`npm run test:mysql`) | 27 testes de integração passando (4 arquivos) |
 | API — `prisma migrate deploy` + `prisma migrate diff` no MySQL 8.4 | migration aplicada, sem divergência entre banco e schema, 7 restrições `CHECK` ativas |
 | API — `tsc` e ESLint | sem erros |
-| App — Jest | 38 testes passando (7 suítes) |
+| App — Jest | 43 testes passando (8 suítes) |
 | App — `tsc`, ESLint e `expo-doctor` | sem erros (21/21 checks) |
 | App — `expo export --platform android` | bundle gerado |
 | Fluxo ponta a ponta na versão web (Edge headless) contra a API em modo memória | cadastro, busca no Open Library, cadastro de livro, sessão, metas, biblioteca, tema e estatísticas funcionando, sem erros de console |
@@ -458,7 +459,7 @@ Capturas da versão web (viewport 390×844), geradas durante o teste ponta a pon
 | Tela recebendo parâmetros | `BookDetailsScreen` (`bookId`), `SessionFormScreen` (`userBookId`, `sessionId`), `BookFormScreen`, `GoalFormScreen` |
 | Login integrado à API + token | `app/src/context/AuthContext.tsx`, `app/src/services/authService.ts`, `api/src/services/authService.ts` |
 | Token no header | Interceptor em `app/src/services/httpClient.ts` |
-| Context API | `AuthContext`, `ThemeContext` |
+| Context API | `AuthContext`, `ThemeContext`, `SnackbarContext` (mensagens de sucesso) |
 | API externa com loading e erro | `app/src/services/catalogService.ts`, `hooks/useBookSearch.ts`, `screens/CatalogSearchScreen.tsx` |
 | FlatList com keyExtractor + detalhes | `screens/LibraryScreen.tsx`, `GoalsScreen.tsx`, `CatalogSearchScreen.tsx` |
 | Formulário com TextInput, Switch e Button + validação | `screens/BookFormScreen.tsx`, `utils/validation.ts` (e validação Zod na API) |

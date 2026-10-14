@@ -16,6 +16,7 @@ const book: BookFormValues = {
   currentPage: '0',
   status: 'WANT_TO_READ',
   isFavorite: false,
+  review: '',
 };
 
 describe('validateBookForm', () => {
@@ -37,6 +38,13 @@ describe('validateBookForm', () => {
 
   it('rejeita números não inteiros', () => {
     expect(validateBookForm({ ...book, totalPages: '12.5' }).totalPages).toBeDefined();
+  });
+
+  it('aceita resenha opcional e limita o tamanho', () => {
+    expect(validateBookForm({ ...book, review: 'Obra-prima.' }).review).toBeUndefined();
+    expect(validateBookForm({ ...book, review: 'a'.repeat(5001) }).review).toBe(
+      'Use no máximo 5000 caracteres',
+    );
   });
 });
 

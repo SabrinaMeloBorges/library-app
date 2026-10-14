@@ -10,6 +10,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
+import { SnackbarProvider } from './src/context/SnackbarContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { useThemeMode } from './src/hooks/useThemeMode';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -44,9 +45,11 @@ const ThemedApp = () => {
   return (
     <PaperProvider theme={theme}>
       <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
+      <SnackbarProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </SnackbarProvider>
     </PaperProvider>
   );
 };
