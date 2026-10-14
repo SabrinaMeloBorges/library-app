@@ -140,6 +140,13 @@ describe('Biblioteca', () => {
       .send(external)
       .expect(409);
 
+    const unchanged = await request(app)
+      .patch(`/api/v1/library/${mine.id}`)
+      .set(...bearer(user.token))
+      .send({ title: 'Duna', authors: 'Frank Herbert', currentPage: 10 })
+      .expect(200);
+    expect(unchanged.body.data.book.id).toBe(theirs.book.id);
+
     const edited = await request(app)
       .patch(`/api/v1/library/${mine.id}`)
       .set(...bearer(user.token))
