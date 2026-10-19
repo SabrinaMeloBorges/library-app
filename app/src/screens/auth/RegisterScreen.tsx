@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { FeedbackBanner } from '../../components/FeedbackBanner';
 import { FormTextField } from '../../components/FormTextField';
+import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { useAuth } from '../../hooks/useAuth';
 import { useSnackbar } from '../../hooks/useSnackbar';
@@ -28,7 +29,7 @@ const INITIAL_VALUES: RegisterFormValues = {
 };
 
 export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>) => {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const { showMessage } = useSnackbar();
   const [values, setValues] = useState<RegisterFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FormErrors<Field>>({});
@@ -62,6 +63,19 @@ export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>)
       const apiError = toApiError(error);
       setErrors((current) => ({ ...current, ...apiError.fieldErrors }));
       setSubmitError(apiError.message);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogle = async (idToken: string) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await loginWithGoogle(idToken);
+      showMessage('Boas-vindas ao Library!');
+    } catch (error) {
+      setSubmitError(toApiError(error).message);
       setIsSubmitting(false);
     }
   };
@@ -148,6 +162,7 @@ export const RegisterScreen = ({ navigation }: RootStackScreenProps<'Register'>)
       >
         Criar conta
       </Button>
+      <GoogleSignInButton onCredential={handleGoogle} disabled={isSubmitting} />
       <View style={styles.footer}>
         <Text variant="bodyMedium">Já tem conta?</Text>
         <Button mode="text" onPress={() => navigation.goBack()} disabled={isSubmitting}>

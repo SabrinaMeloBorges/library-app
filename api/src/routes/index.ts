@@ -11,6 +11,7 @@ const buildAuthRoutes = ({ controllers, authenticate, authRateLimiter }: RouterD
   const router = Router();
   router.post('/register', authRateLimiter, controllers.auth.register);
   router.post('/login', authRateLimiter, controllers.auth.login);
+  router.post('/google', authRateLimiter, controllers.auth.google);
   router.get('/me', authenticate, controllers.auth.me);
   router.post('/logout', authenticate, controllers.auth.logout);
   return router;

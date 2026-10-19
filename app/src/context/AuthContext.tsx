@@ -13,6 +13,7 @@ export interface AuthContextValue {
   sessionError: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -96,6 +97,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [startSession, clearSession],
   );
 
+  const loginWithGoogle = useCallback(
+    async (idToken: string): Promise<void> => {
+      try {
+        await startSession(await authService.loginWithGoogle(idToken));
+      } catch (error) {
+        await clearSession();
+        throw error;
+      }
+    },
+    [startSession, clearSession],
+  );
+
   const logout = useCallback(async (): Promise<void> => {
     await authService.logout().catch(() => undefined);
     await clearSession();
@@ -119,11 +132,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sessionError,
       login,
       register,
+      loginWithGoogle,
       logout,
       restoreSession,
       updateUser: setUser,
     }),
-    [user, token, isLoading, sessionError, login, register, logout, restoreSession],
+    [
+      user,
+      token,
+      isLoading,
+      sessionError,
+      login,
+      register,
+      loginWithGoogle,
+      logout,
+      restoreSession,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

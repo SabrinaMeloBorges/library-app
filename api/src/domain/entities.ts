@@ -31,12 +31,13 @@ export interface User {
   username: string;
   email: string;
   passwordHash: string;
+  googleId: string | null;
   bio: string | null;
   shareActivity: boolean;
   createdAt: Date;
 }
 
-export type PublicUser = Omit<User, 'passwordHash'>;
+export type PublicUser = Omit<User, 'passwordHash' | 'googleId'>;
 
 export interface UserSummary {
   id: string;

@@ -46,6 +46,11 @@ export const authService = {
     return assertAuthResponse(data);
   },
 
+  async loginWithGoogle(idToken: string): Promise<AuthResponse> {
+    const { data } = await httpClient.post<unknown>('/auth/google', { idToken });
+    return assertAuthResponse(data);
+  },
+
   async me(): Promise<User> {
     const { data } = await httpClient.get<{ user: unknown }>('/auth/me');
     if (!isUser(data.user)) throw new ApiError('Usuário inválido recebido da API.', null);

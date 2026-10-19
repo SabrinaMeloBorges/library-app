@@ -4,6 +4,10 @@ import swaggerUi from 'swagger-ui-express';
 import type { AppConfig } from './config/env';
 import { createControllers, createServices } from './config/container';
 import { openApiDocument } from './docs/openapi';
+import {
+  createGoogleTokenVerifier,
+  type GoogleTokenVerifier,
+} from './services/googleTokenVerifier';
 import { createAuthenticate } from './middlewares/authenticate';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { requestLogger } from './middlewares/requestLogger';
@@ -14,11 +18,18 @@ import { buildApiRouter } from './routes';
 export interface AppDependencies {
   config: AppConfig;
   repositories: Repositories;
+  googleVerifier?: GoogleTokenVerifier | null;
 }
 
-export const createApp = ({ config, repositories }: AppDependencies): Express => {
+export const createApp = ({ config, repositories, googleVerifier }: AppDependencies): Express => {
   const app = express();
-  const services = createServices(repositories, config);
+  const services = createServices(
+    repositories,
+    config,
+    googleVerifier === undefined
+      ? createGoogleTokenVerifier(config.GOOGLE_CLIENT_ID)
+      : googleVerifier,
+  );
   const controllers = createControllers(services);
   const rateLimiters = createRateLimiters(config);
 

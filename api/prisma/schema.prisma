@@ -54,6 +54,7 @@ model User {
   username      String   @unique @db.VarChar(30)
   email         String   @unique @db.VarChar(160)
   passwordHash  String   @map("password_hash") @db.VarChar(255)
+  googleId      String?  @unique @map("google_id") @db.VarChar(64)
   bio           String?  @db.VarChar(160)
   shareActivity Boolean  @default(true) @map("share_activity")
   createdAt     DateTime @default(now()) @map("created_at")

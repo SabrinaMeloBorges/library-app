@@ -29,6 +29,7 @@ export interface CreateUserData {
   username: string;
   email: string;
   passwordHash: string;
+  googleId?: string | null;
 }
 
 export interface UpdateUserData {
@@ -36,11 +37,13 @@ export interface UpdateUserData {
   username?: string;
   bio?: string | null;
   shareActivity?: boolean;
+  googleId?: string | null;
 }
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  findByGoogleId(googleId: string): Promise<User | null>;
   findByUsername(username: string): Promise<User | null>;
   create(data: CreateUserData): Promise<User>;
   update(id: string, data: UpdateUserData): Promise<User>;

@@ -7,6 +7,7 @@ import { loadConfig } from '../src/config/env';
 import type { Repositories } from '../src/repositories/contracts';
 import { createMemoryRepositories } from '../src/repositories/memory/memoryRepositories';
 import { createPrismaRepositories } from '../src/repositories/prisma/prismaRepositories';
+import type { GoogleTokenVerifier } from '../src/services/googleTokenVerifier';
 
 export const testConfig = loadConfig({
   NODE_ENV: 'test',
@@ -33,8 +34,8 @@ export const disconnectTestDatabase = async (): Promise<void> => {
   prisma = null;
 };
 
-export const buildTestApp = (): Express =>
-  createApp({ config: testConfig, repositories: createTestRepositories() });
+export const buildTestApp = (googleVerifier: GoogleTokenVerifier | null = null): Express =>
+  createApp({ config: testConfig, repositories: createTestRepositories(), googleVerifier });
 
 export interface TestUser {
   token: string;

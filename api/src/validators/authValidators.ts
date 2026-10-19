@@ -28,5 +28,13 @@ export const loginSchema = z.object({
     .max(72),
 });
 
+export const googleLoginSchema = z.object({
+  idToken: z
+    .string({ required_error: 'Token do Google é obrigatório' })
+    .min(1, 'Token do Google é obrigatório')
+    .max(4096),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;

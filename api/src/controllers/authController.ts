@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { requireAuth } from '../middlewares/authenticate';
 import type { AuthService } from '../services/authService';
-import { loginSchema, registerSchema } from '../validators/authValidators';
+import { googleLoginSchema, loginSchema, registerSchema } from '../validators/authValidators';
 import { parseOrThrow } from '../validators/parse';
 import { presentMe } from './socialPresenters';
 
@@ -16,6 +16,11 @@ export class AuthController {
   login = async (req: Request, res: Response): Promise<void> => {
     const input = parseOrThrow(loginSchema, req.body);
     res.json(await this.authService.login(input));
+  };
+
+  google = async (req: Request, res: Response): Promise<void> => {
+    const input = parseOrThrow(googleLoginSchema, req.body);
+    res.json(await this.authService.loginWithGoogle(input));
   };
 
   me = async (req: Request, res: Response): Promise<void> => {

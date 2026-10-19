@@ -17,6 +17,7 @@ import { ChatService } from '../services/chatService';
 import { ClubProgressService } from '../services/clubProgressService';
 import { ClubService } from '../services/clubService';
 import { EngagementService } from '../services/engagementService';
+import type { GoogleTokenVerifier } from '../services/googleTokenVerifier';
 import { LibraryService } from '../services/libraryService';
 import { ReadingGoalService } from '../services/readingGoalService';
 import { ReadingSessionService } from '../services/readingSessionService';
@@ -50,7 +51,11 @@ export interface Controllers {
   chat: ChatController;
 }
 
-export const createServices = (repositories: Repositories, config: AppConfig): Services => {
+export const createServices = (
+  repositories: Repositories,
+  config: AppConfig,
+  googleVerifier: GoogleTokenVerifier | null = null,
+): Services => {
   const timeZone = config.APP_TIMEZONE;
   const snapshots = new ReadingSnapshotService(
     repositories.readingSessions,
@@ -84,7 +89,13 @@ export const createServices = (repositories: Repositories, config: AppConfig): S
   );
 
   return {
-    auth: new AuthService(repositories.users, repositories.authSessions, engagement, config),
+    auth: new AuthService(
+      repositories.users,
+      repositories.authSessions,
+      engagement,
+      config,
+      googleVerifier,
+    ),
     library: new LibraryService(repositories.books, repositories.userBooks, engagement),
     readingSessions: new ReadingSessionService(
       repositories.readingSessions,

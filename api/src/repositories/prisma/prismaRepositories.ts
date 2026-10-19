@@ -23,6 +23,7 @@ import {
 const createUserRepository = (prisma: PrismaClient): UserRepository => ({
   findById: (id) => prisma.user.findUnique({ where: { id } }),
   findByEmail: (email) => prisma.user.findUnique({ where: { email } }),
+  findByGoogleId: (googleId) => prisma.user.findUnique({ where: { googleId } }),
   findByUsername: (username) => prisma.user.findUnique({ where: { username } }),
   create: (data) => prisma.user.create({ data }),
   update: (id, data) => prisma.user.update({ where: { id }, data }),
