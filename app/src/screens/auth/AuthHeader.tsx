@@ -1,5 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { spacing } from '../../theme/spacing';
@@ -8,9 +7,11 @@ export const AuthHeader = ({ subtitle }: { subtitle: string }) => {
   const theme = useAppTheme();
   return (
     <View style={styles.header}>
-      <View style={[styles.emblem, { borderColor: theme.appColors.accent }]}>
-        <MaterialCommunityIcons name="bookshelf" size={32} color={theme.appColors.primary} />
-      </View>
+      <Image
+        source={require('../../../assets/logo.png')}
+        style={styles.logo}
+        accessibilityIgnoresInvertColors
+      />
       <Text
         variant="displaySmall"
         style={{ color: theme.appColors.primary }}
@@ -32,13 +33,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     gap: spacing.sm,
   },
-  emblem: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  logo: { width: 88, height: 88 },
   subtitle: { textAlign: 'center', maxWidth: 300 },
 });
