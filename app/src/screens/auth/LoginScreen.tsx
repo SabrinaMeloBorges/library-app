@@ -3,6 +3,7 @@ import { StyleSheet, View, type TextInput as NativeTextInput } from 'react-nativ
 import { Button, Text, TextInput } from 'react-native-paper';
 import { FeedbackBanner } from '../../components/FeedbackBanner';
 import { FormTextField } from '../../components/FormTextField';
+import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { useAuth } from '../../hooks/useAuth';
 import type { RootStackScreenProps } from '../../navigation/types';
@@ -17,7 +18,7 @@ import {
 import { AuthHeader } from './AuthHeader';
 
 export const LoginScreen = ({ navigation }: RootStackScreenProps<'Login'>) => {
-  const { login, sessionError } = useAuth();
+  const { login, loginWithGoogle, sessionError } = useAuth();
   const [values, setValues] = useState<LoginFormValues>({ email: '', password: '' });
   const [errors, setErrors] = useState<FormErrors<keyof LoginFormValues>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -40,6 +41,18 @@ export const LoginScreen = ({ navigation }: RootStackScreenProps<'Login'>) => {
     setSubmitError(null);
     try {
       await login({ email: values.email.trim().toLowerCase(), password: values.password });
+    } catch (error) {
+      setSubmitError(getErrorMessage(error));
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogle = async (idToken: string) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await loginWithGoogle(idToken);
     } catch (error) {
       setSubmitError(getErrorMessage(error));
       setIsSubmitting(false);
@@ -97,6 +110,7 @@ export const LoginScreen = ({ navigation }: RootStackScreenProps<'Login'>) => {
       >
         Entrar
       </Button>
+      <GoogleSignInButton onCredential={handleGoogle} disabled={isSubmitting} />
       <View style={styles.footer}>
         <Text variant="bodyMedium">Ainda não tem conta?</Text>
         <Button mode="text" onPress={() => navigation.navigate('Register')} disabled={isSubmitting}>

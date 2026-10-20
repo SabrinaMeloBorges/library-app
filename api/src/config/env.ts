@@ -20,6 +20,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN_HOURS: z.coerce.number().int().positive().max(720).default(168),
   BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
   CORS_ORIGINS: csv,
+  GOOGLE_CLIENT_ID: z.string().trim().optional(),
   APP_TIMEZONE: z.string().default('America/Sao_Paulo'),
   RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(300),

@@ -25,6 +25,8 @@ const createUserRepository = (store: MemoryStore): UserRepository => ({
   findById: async (id) => store.users.get(id) ?? null,
   findByEmail: async (email) =>
     [...store.users.values()].find((user) => user.email === email) ?? null,
+  findByGoogleId: async (googleId) =>
+    [...store.users.values()].find((user) => user.googleId === googleId) ?? null,
   findByUsername: async (username) =>
     [...store.users.values()].find((user) => user.username === username) ?? null,
   create: async (data) => {
@@ -34,6 +36,7 @@ const createUserRepository = (store: MemoryStore): UserRepository => ({
       bio: null,
       shareActivity: true,
       ...data,
+      googleId: data.googleId ?? null,
     };
     store.users.set(user.id, user);
     return user;

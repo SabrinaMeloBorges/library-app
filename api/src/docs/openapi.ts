@@ -502,6 +502,25 @@ export const openApiDocument = {
         },
       },
     },
+    '/auth/google': {
+      post: {
+        tags: ['Autenticação'],
+        summary: 'Autentica com o ID token do Google, criando a conta se necessário',
+        requestBody: {
+          required: true,
+          content: jsonContent({
+            type: 'object',
+            required: ['idToken'],
+            properties: { idToken: { type: 'string' } },
+          }),
+        },
+        responses: {
+          200: { description: 'Autenticado', content: jsonContent(ref('AuthResult')) },
+          401: errorResponse('Token do Google inválido'),
+          503: errorResponse('Login com Google não configurado'),
+        },
+      },
+    },
     '/auth/me': {
       get: {
         tags: ['Autenticação'],

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: library-api
+    runtime: node
+    plan: free
+    rootDir: api
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://sabrinameloborges.github.io
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: APP_TIMEZONE
+        value: America/Sao_Paulo

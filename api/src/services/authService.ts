@@ -1,12 +1,13 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { AppConfig } from '../config/env';
 import type { PublicUser, User } from '../domain/entities';
 import { AppError } from '../errors/AppError';
 import type { AuthSessionRepository, UserRepository } from '../repositories/contracts';
-import type { LoginInput, RegisterInput } from '../validators/authValidators';
+import type { GoogleLoginInput, LoginInput, RegisterInput } from '../validators/authValidators';
 import type { EngagementHooks } from './engagementService';
+import type { GoogleTokenVerifier } from './googleTokenVerifier';
 import { ensureUsernameAvailable, generateUsername } from './usernames';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -34,7 +35,11 @@ const isTokenPayload = (value: unknown): value is TokenPayload =>
   typeof (value as TokenPayload).sub === 'string' &&
   typeof (value as TokenPayload).jti === 'string';
 
-export const toPublicUser = ({ passwordHash: _passwordHash, ...user }: User): PublicUser => user;
+export const toPublicUser = ({
+  passwordHash: _passwordHash,
+  googleId: _googleId,
+  ...user
+}: User): PublicUser => user;
 
 export class AuthService {
   private readonly dummyHash: string;
@@ -44,6 +49,7 @@ export class AuthService {
     private readonly sessions: AuthSessionRepository,
     private readonly engagement: EngagementHooks,
     private readonly config: Pick<AppConfig, 'JWT_SECRET' | 'JWT_EXPIRES_IN_HOURS' | 'BCRYPT_COST'>,
+    private readonly googleVerifier: GoogleTokenVerifier | null = null,
   ) {
     this.dummyHash = bcrypt.hashSync('library-timing-protection', config.BCRYPT_COST);
   }
@@ -76,6 +82,19 @@ export class AuthService {
     return this.issueSession(user);
   }
 
+  async loginWithGoogle(input: GoogleLoginInput): Promise<AuthResult> {
+    if (!this.googleVerifier)
+      throw AppError.serviceUnavailable('Login com Google não está configurado');
+    const identity = await this.googleVerifier.verify(input.idToken);
+    if (!identity) throw AppError.unauthorized('Não foi possível validar a conta Google');
+    if (!identity.emailVerified)
+      throw AppError.unauthorized('O e-mail da conta Google não foi verificado');
+
+    const user = await this.findOrCreateGoogleUser(identity);
+    await this.engagement.usersChanged([user.id]);
+    return this.issueSession(user);
+  }
+
   async getProfile(userId: string): Promise<PublicUser> {
     const user = await this.users.findById(userId);
     if (!user) throw AppError.unauthorized('Usuário da sessão não existe mais');
@@ -96,6 +115,31 @@ export class AuthService {
       session.expiresAt.getTime() > Date.now();
     if (!isActive) throw AppError.unauthorized('Sessão expirada ou encerrada');
     return { userId: payload.sub, sessionId: payload.jti };
+  }
+
+  private async findOrCreateGoogleUser(identity: {
+    googleId: string;
+    email: string;
+    name: string;
+  }): Promise<User> {
+    const linked = await this.users.findByGoogleId(identity.googleId);
+    if (linked) return linked;
+
+    const existing = await this.users.findByEmail(identity.email);
+    if (existing) return this.users.update(existing.id, { googleId: identity.googleId });
+
+    const name = identity.name.trim().slice(0, 80) || 'Leitor';
+    const passwordHash = await bcrypt.hash(
+      randomBytes(32).toString('hex'),
+      this.config.BCRYPT_COST,
+    );
+    return this.users.create({
+      name,
+      username: await generateUsername(this.users, name),
+      email: identity.email,
+      passwordHash,
+      googleId: identity.googleId,
+    });
   }
 
   private decodeToken(token: string): TokenPayload {

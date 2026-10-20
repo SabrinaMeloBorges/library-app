@@ -34,6 +34,7 @@ jobs:
       - run: npx expo export --platform web --output-dir dist
         env:
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}
 
       - run: |
           cp dist/index.html dist/404.html

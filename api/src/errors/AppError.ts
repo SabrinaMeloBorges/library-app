@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'SERVICE_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
 export interface ErrorDetail {
@@ -37,5 +38,9 @@ export class AppError extends Error {
 
   static conflict(message: string): AppError {
     return new AppError(409, 'CONFLICT', message);
+  }
+
+  static serviceUnavailable(message: string): AppError {
+    return new AppError(503, 'SERVICE_UNAVAILABLE', message);
   }
 }
