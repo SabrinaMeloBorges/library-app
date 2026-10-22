@@ -4,6 +4,8 @@ Aplicativo mobile de biblioteca pessoal para organizar livros, acompanhar o prog
 
 O repositório contém o aplicativo React Native com Expo (`/app`), a API REST própria em Node.js (`/api`) e a documentação do projeto.
 
+**Versão web publicada:** https://sabrinameloborges.github.io/library-app/ (API em https://library-api-q6ey.onrender.com, documentação em `/docs`).
+
 ## Sumário
 
 1. [Problema](#problema)
@@ -16,15 +18,16 @@ O repositório contém o aplicativo React Native com Expo (`/app`), a API REST p
 8. [API: instalação e execução](#api-instalação-e-execução)
 9. [Aplicativo: instalação e execução](#aplicativo-instalação-e-execução)
 10. [Variáveis de ambiente](#variáveis-de-ambiente)
-11. [Banco de dados e migrations](#banco-de-dados-e-migrations)
-12. [Testes](#testes)
-13. [Endpoints](#endpoints)
-14. [DER do banco de dados](#der-do-banco-de-dados)
-15. [Telas](#telas)
-16. [Mapa dos requisitos acadêmicos](#mapa-dos-requisitos-acadêmicos)
-17. [Decisões técnicas](#decisões-técnicas)
-18. [Limitações conhecidas](#limitações-conhecidas)
-19. [Integrantes](#integrantes)
+11. [Deploy](#deploy)
+12. [Banco de dados e migrations](#banco-de-dados-e-migrations)
+13. [Testes](#testes)
+14. [Endpoints](#endpoints)
+15. [DER do banco de dados](#der-do-banco-de-dados)
+16. [Telas](#telas)
+17. [Mapa dos requisitos acadêmicos](#mapa-dos-requisitos-acadêmicos)
+18. [Decisões técnicas](#decisões-técnicas)
+19. [Limitações conhecidas](#limitações-conhecidas)
+20. [Integrantes](#integrantes)
 
 ## Problema
 
@@ -50,7 +53,7 @@ Quem lê com frequência costuma espalhar as informações das leituras entre an
 
 | Área | O que faz |
 | --- | --- |
-| Autenticação | Cadastro, login, logout com revogação da sessão no servidor, restauração automática da sessão. |
+| Autenticação | Cadastro, login, login com Google na versão web, logout com revogação da sessão no servidor, restauração automática da sessão. |
 | Biblioteca | CRUD de livros do usuário, pesquisa por título/autor, filtro por status, ordenação, alternância lista/grade, favorito, avaliação de 1 a 5 e resenha. |
 | Feedback | Mensagens de sucesso ao salvar, atualizar ou excluir livros, sessões e metas; erros do servidor exibidos junto aos campos. |
 | Catálogo externo | Busca no Open Library com debounce, carregamento, erro, lista vazia, nova tentativa e cadastro manual alternativo. |
@@ -239,6 +242,7 @@ npx eas-cli build -p android --profile preview   # APK/AAB via EAS (requer conta
 | `JWT_EXPIRES_IN_HOURS` | não | `168` | Validade do token (máximo 720). |
 | `BCRYPT_COST` | não | `12` | Custo do hash de senha. |
 | `CORS_ORIGINS` | não | vazio | Origens web permitidas, separadas por vírgula. Apps nativos não enviam `Origin`. |
+| `GOOGLE_CLIENT_ID` | não | vazio | Client ID OAuth (tipo Web) do Google. Sem ele, `/auth/google` responde 503. |
 | `APP_TIMEZONE` | não | `America/Sao_Paulo` | Fuso usado para agrupar dias, anos e períodos de metas. |
 | `RATE_LIMIT_WINDOW_MINUTES` | não | `15` | Janela do rate limit. |
 | `RATE_LIMIT_MAX_REQUESTS` | não | `300` | Limite geral por IP na janela. |
@@ -249,8 +253,19 @@ npx eas-cli build -p android --profile preview   # APK/AAB via EAS (requer conta
 | Variável | Descrição |
 | --- | --- |
 | `EXPO_PUBLIC_API_URL` | URL base da API, ex.: `http://192.168.0.10:3333/api/v1`. Opcional. |
+| `EXPO_PUBLIC_GOOGLE_CLIENT_ID` | Client ID OAuth (tipo Web) do Google. Sem ele, o botão "Continuar com o Google" não aparece. Opcional. |
 
 Arquivos `.env` reais não são versionados. Apenas os `.env.example` entram no Git.
+
+## Deploy
+
+| Parte | Onde | Como |
+| --- | --- | --- |
+| Banco | Aiven for MySQL (plano Free) | MySQL 8.4 gerenciado. A `DATABASE_URL` usa `?sslaccept=accept_invalid_certs` para conexão TLS. |
+| API | Render (plano Free), definida em `render.yaml` | Build com `npm ci --include=dev && npx prisma generate && npm run build`; ao iniciar, aplica as migrations com `prisma migrate deploy`. Variáveis: `DATABASE_URL`, `JWT_SECRET` (gerado pelo Render), `CORS_ORIGINS` e `GOOGLE_CLIENT_ID`. |
+| Web | GitHub Pages, via `.github/workflows/pages.yml` | A cada push na `main`, gera a versão web com `expo export` (`baseUrl` `/library-app`) usando as variáveis do repositório `EXPO_PUBLIC_API_URL` e `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. |
+
+No plano gratuito, a API hiberna após 15 minutos sem uso e a primeira requisição seguinte pode levar cerca de 50 segundos. O login com Google usa o Google Identity Services e está disponível apenas na versão web; no app nativo o login é por e-mail e senha.
 
 ## Banco de dados e migrations
 
@@ -334,6 +349,7 @@ Base: `/api/v1`. Rotas marcadas com 🔒 exigem `Authorization: Bearer <token>`.
 | GET | `/health` | Verificação de disponibilidade |
 | POST | `/auth/register` | Cria conta e retorna `{ token, expiresAt, user }` |
 | POST | `/auth/login` | Autentica e retorna `{ token, expiresAt, user }` |
+| POST | `/auth/google` | Valida o ID token do Google, cria ou vincula a conta pelo e-mail e retorna `{ token, expiresAt, user }` |
 | GET | `/auth/me` 🔒 | Usuário autenticado |
 | POST | `/auth/logout` 🔒 | Revoga a sessão do token atual |
 | GET | `/library` 🔒 | Lista livros (`status`, `q`, `favorites`, `sort`, `order`) |
@@ -403,6 +419,7 @@ erDiagram
         VARCHAR(30) username UK
         VARCHAR(160) email UK
         VARCHAR(255) password_hash
+        VARCHAR(64) google_id UK "nullable"
         VARCHAR(160) bio
         BOOLEAN share_activity
         DATETIME created_at

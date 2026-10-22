@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput as NativeTextInput } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
+import { DownloadAppButton } from '../../components/DownloadAppButton';
 import { FeedbackBanner } from '../../components/FeedbackBanner';
 import { FormTextField } from '../../components/FormTextField';
 import { GoogleSignInButton } from '../../components/GoogleSignInButton';
@@ -117,6 +118,7 @@ export const LoginScreen = ({ navigation }: RootStackScreenProps<'Login'>) => {
           Criar conta
         </Button>
       </View>
+      <DownloadAppButton />
     </ScreenContainer>
   );
 };
